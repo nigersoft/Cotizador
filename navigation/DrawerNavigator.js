@@ -6,7 +6,7 @@ import CotizacionesScreen from '../screens/CotizacionScreen';
 import CotizacionesGeneradas from '../screens/CotizacionesGeneradas';
 import ListaClientes from '../screens/ListaClientes';
 import MaterialesScreen from '../screens/MaterialesScreen';
-import Submenu33Screen from '../screens/Submenu33Screen';
+import Configuraciones from '../screens/Configuraciones';
 import NuevoClienteScreen from '../screens/NuevoClienteScreen';
 import EditarClienteScreen from '../screens/EditarClienteScreen';
 import EditarVidrioScrm from '../screens/EditarVidrioScreen';
@@ -26,7 +26,7 @@ export default function DrawerNavigator() {
       {/* Se registran las pantallas asociadas a los submenús de Menu3 */}
       <Drawer.Screen name="ListaClientes" component={ListaClientes} />
       <Drawer.Screen name="Materiales" component={MaterialesScreen} />
-      <Drawer.Screen name="Submenu3.3" component={Submenu33Screen} />
+      <Drawer.Screen name="Configuraciones" component={Configuraciones} />
       <Drawer.Screen name="NuevoCliente" component={NuevoClienteScreen} />
       <Drawer.Screen name="EditarCliente" component={EditarClienteScreen}  options={{ unmountOnBlur: true }} />
       <Drawer.Screen name="NuevoVidrio" component={NuevoVidrio} />

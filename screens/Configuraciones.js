@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Button } from 'react-native-paper';
 import { ACTUALIZAR_DB, EXPORTAR_DB } from '../ModuloDb/MDb.js';
 
-export default function Submenu33Screen() {
+export default function Configuraciones() {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <Button

@@ -45,9 +45,9 @@ export default function CustomDrawerContent(props) {
             icon={({ color, size }) => <MaterialIcons name="category" size={size} color={color} />}
           />
           <DrawerItem
-            label="Submenu3.3"
-            onPress={() => props.navigation.navigate('Submenu3.3')}
-            icon={({ color, size }) => <MaterialIcons name="more-horiz" size={size} color={color} />}
+            label="Configuraciones"
+            onPress={() => props.navigation.navigate('Configuraciones')}
+            icon={({ color, size }) => <MaterialIcons name="settings" size={size} color={color} />}
           />
         </View>
       )}
