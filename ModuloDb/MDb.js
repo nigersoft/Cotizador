@@ -282,6 +282,44 @@ export const deleteCliente = async (db, id) => {
   }, db, id);
 };
 
+export const getCotizacionesCountByCliente = async (db, idCliente) => {
+  return await withReconnection(async (validDb) => {
+    const result = await validDb.getFirstAsync(
+      'SELECT COUNT(*) as count FROM Cotizaciones WHERE IdCliente = ?',
+      idCliente
+    );
+    return result?.count || 0;
+  }, db, idCliente);
+};
+
+export const deleteCotizacionesByCliente = async (db, idCliente) => {
+  return await withReconnection(async (validDb) => {
+    try {
+      await validDb.execAsync('BEGIN TRANSACTION');
+
+      // Primero obtener todos los IDs de cotizaciones del cliente
+      const cotizaciones = await validDb.getAllAsync(
+        'SELECT Id FROM Cotizaciones WHERE IdCliente = ?',
+        [idCliente]
+      );
+
+      // Eliminar las ventanas de cada cotización
+      for (const cotizacion of cotizaciones) {
+        await validDb.runAsync('DELETE FROM Ventanas WHERE IdCotizacion = ?', [cotizacion.Id]);
+      }
+
+      // Eliminar todas las cotizaciones del cliente
+      const result = await validDb.runAsync('DELETE FROM Cotizaciones WHERE IdCliente = ?', [idCliente]);
+
+      await validDb.execAsync('COMMIT');
+      return result.changes;
+    } catch (error) {
+      await validDb.execAsync('ROLLBACK');
+      throw error;
+    }
+  }, db, idCliente);
+};
+
 // ***************  Materiales ***********************
 export const getAllMateriales = async (db) => {
   return await withReconnection(async (validDb) => {

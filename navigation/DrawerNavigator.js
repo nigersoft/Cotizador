@@ -18,9 +18,12 @@ import ExportarCotizacion from '../screens/ExportarCotizacion';
 
 const Drawer = createDrawerNavigator();
 
+// Render function extracted to prevent recreation on every render
+const renderDrawerContent = (props) => <CustomDrawerContent {...props} />;
+
 export default function DrawerNavigator() {
   return (
-    <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}>
+    <Drawer.Navigator drawerContent={renderDrawerContent}>
       <Drawer.Screen name="Cotizaciones" component={CotizacionesScreen} />
       <Drawer.Screen name="CotizacionesGen" component={CotizacionesGeneradas} />
       {/* Se registran las pantallas asociadas a los submenús de Menu3 */}

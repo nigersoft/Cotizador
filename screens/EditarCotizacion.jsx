@@ -1,5 +1,5 @@
 // screens/EditarCotizacion.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, StyleSheet, Alert, FlatList, TextInput, Modal,
   TouchableOpacity, Text as RNText, Switch
@@ -59,15 +59,15 @@ const EditarCotizacion = ({ route, navigation }) => {
       }
     };
     init();
-  }, [cotizacion]);
+  }, [cotizacion, cargarDatos]);
 
   // === Cargar datos desde SQL ===
-  const cargarDatos = async (database) => {
+  const cargarDatos = useCallback(async (database) => {
     const v = await getVentanasPorCotizacion(database, cotizacion.Id);
     setIdCliente(cotizacion.IdCliente);
     setDescripcion(cotizacion.Descripcion ?? '');
     setVentanas(v);
-  };
+  }, [cotizacion.Id, cotizacion.IdCliente, cotizacion.Descripcion]);
 
   // ====== Editar: abrir modal con datos del ítem ======
   const handleEdit = (ventana) => {
@@ -269,7 +269,7 @@ const EditarCotizacion = ({ route, navigation }) => {
             </View>
 
             <RNText style={styles.inputLabel}>Costo (editable)</RNText>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={styles.costoRow}>
               <TextInput
                 value={eCosto}
                 onChangeText={(t) => {
@@ -278,28 +278,28 @@ const EditarCotizacion = ({ route, navigation }) => {
                 }}
                 placeholder="Costo final"
                 keyboardType="numeric"
-                style={[styles.mInput, { flex: 1 }]}
+                style={[styles.mInput, styles.costoInput]}
               />
               <TouchableOpacity
                 style={[styles.actionBtn, styles.roundBtn]}
                 onPress={() => setECosto(String(redondear(eCosto, pasoRedondeo)))}
               >
-                <RNText style={[styles.actionText, { color: '#fff' }]}>Redondear</RNText>
+                <RNText style={styles.roundBtnText}>Redondear</RNText>
               </TouchableOpacity>
             </View>
 
             {/* Selector rápido del paso */}
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+            <View style={styles.stepPillContainer}>
               {[100, 500, 1000].map(p => (
                 <TouchableOpacity
                   key={p}
                   style={[
                     styles.stepPill,
-                    pasoRedondeo === p && { backgroundColor: '#2196F3' }
+                    pasoRedondeo === p && styles.stepPillActive
                   ]}
                   onPress={() => setPasoRedondeo(p)}
                 >
-                  <RNText style={{ color: pasoRedondeo === p ? '#fff' : '#222', fontWeight: '700' }}>
+                  <RNText style={pasoRedondeo === p ? styles.stepPillTextActive : styles.stepPillText}>
                     ₡{p}
                   </RNText>
                 </TouchableOpacity>
@@ -311,7 +311,7 @@ const EditarCotizacion = ({ route, navigation }) => {
                 <RNText style={styles.actionText}>Cancelar</RNText>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={confirmarEdicion}>
-                <RNText style={[styles.actionText, { color: '#fff' }]}>Guardar</RNText>
+                <RNText style={styles.saveBtnText}>Guardar</RNText>
               </TouchableOpacity>
             </View>
           </View>
@@ -424,6 +424,38 @@ const styles = StyleSheet.create({
   actionText: {
     fontWeight: '700',
     color: '#222',
+  },
+  saveBtnText: {
+    fontWeight: '700',
+    color: '#fff',
+  },
+  roundBtnText: {
+    fontWeight: '700',
+    color: '#fff',
+  },
+  costoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  costoInput: {
+    flex: 1,
+  },
+  stepPillContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+  },
+  stepPillActive: {
+    backgroundColor: '#2196F3',
+  },
+  stepPillText: {
+    color: '#222',
+    fontWeight: '700',
+  },
+  stepPillTextActive: {
+    color: '#fff',
+    fontWeight: '700',
   },
 });
 

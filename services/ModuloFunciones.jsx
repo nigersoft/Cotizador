@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-import { getDBConnection, getAllMateriales, getCostoVidrioById,getCotizacionById} from '../ModuloDb/MDb.js';
-import { Alert} from 'react-native';
+import { getDBConnection, getAllMateriales, getCostoVidrioById } from '../ModuloDb/MDb.js';
+import { Alert } from 'react-native';
 
 export const CalcularCostos = async(B,A,IdVid) =>{
 
@@ -114,11 +113,11 @@ export const GuardarCotizacion = async (db, IdCliente,Ventanas) => {
 
     // Insertar ventanas asociadas
     for (const ventana of Ventanas) {
-      const {  IdVidrio,Descripcion, Costo, Base, Altura} = ventana;
+      const {  IdVidrio, Descripcion: VentanaDescripcion, Costo, Base, Altura} = ventana;
 
       await db.runAsync(
         `INSERT INTO Ventanas (IdCotizacion,IdVidrio,Descripcion,Costo,Base,Altura) VALUES (?, ?, ?, ?, ?, ?)`,
-        IdCotizacion,IdVidrio, Descripcion, Costo,Base,Altura
+        IdCotizacion, IdVidrio, VentanaDescripcion, Costo, Base, Altura
       );
     }
 

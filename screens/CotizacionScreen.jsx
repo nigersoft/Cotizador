@@ -7,6 +7,9 @@ import FormularioVentana from '../components/FormularioVentana';
 import { getDBConnection } from '../ModuloDb/MDb';
 import { formatearColones, CalcularCostos, GuardarCotizacion } from '../services/ModuloFunciones';
 
+// Separator component defined outside to prevent recreation
+const ItemSeparator = () => <View style={styles.separator} />;
+
 export default function CotizacionesScreen() {
   const [Altura, setAltura] = useState('');
   const [Base, setBase] = useState('');
@@ -204,7 +207,7 @@ export default function CotizacionesScreen() {
             onDelete={handleDelete}
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ItemSeparatorComponent={ItemSeparator}
         ListEmptyComponent={
           <Text style={styles.emptyText}>No hay ventanas agregadas aún.</Text>
         }
@@ -308,7 +311,7 @@ export default function CotizacionesScreen() {
                 <RNText style={styles.actionText}>Cancelar</RNText>
               </TouchableOpacity>
               <TouchableOpacity style={[styles.actionBtn, styles.saveBtn]} onPress={confirmarEdicion}>
-                <RNText style={[styles.actionText, { color: '#fff' }]}>Guardar</RNText>
+                <RNText style={styles.saveBtnText}>Guardar</RNText>
               </TouchableOpacity>
             </View>
           </View>
@@ -357,6 +360,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#666',
     marginTop: 8,
+  },
+  separator: {
+    height: 8,
   },
 
   // Modal styles
@@ -427,5 +433,9 @@ const styles = StyleSheet.create({
   actionText: {
     fontWeight: '700',
     color: '#222',
+  },
+  saveBtnText: {
+    fontWeight: '700',
+    color: '#fff',
   },
 });

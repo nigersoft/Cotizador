@@ -26,7 +26,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
       }
     };
     cargarDatos();
-  }, []);
+  }, [cotizacion.Id]);
 
   const generarHTML = () => {
     const ventanasHtml = ventanas.map(v => `
@@ -160,16 +160,16 @@ const ExportarCotizacion = ({ route, navigation }) => {
             <Text style={styles.sectionTitle}>Costo Total:</Text>
             <Text style={styles.total}>{formatearColones(cotizacion.Costo)}</Text>
 
-            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Detalle de Ventanas:</Text>
+            <Text style={styles.detalleTitle}>Detalle de Ventanas:</Text>
             <View style={styles.tableHeader}>
-              <Text style={[styles.cell, { flex: 2 }]}>Descripción</Text>
+              <Text style={styles.cellHeader}>Descripción</Text>
               <Text style={styles.cell}>Dimensiones</Text>
               <Text style={styles.cell}>Material</Text>
               <Text style={styles.cell}>Costo</Text>
             </View>
             {ventanas.map((v, index) => (
               <View key={index} style={styles.tableRow}>
-                <Text style={[styles.cell, { flex: 2 }]}>{v.Descripcion}</Text>
+                <Text style={styles.cellHeader}>{v.Descripcion}</Text>
                 <Text style={styles.cell}>
                   {(v.Base / 100).toFixed(2)} x {(v.Altura / 100).toFixed(2)} m
                 </Text>
@@ -181,7 +181,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
 
           <Button
             mode="contained"
-            style={{ marginTop: 20 }}
+            style={styles.exportButton}
             onPress={exportarPDF}
           >
             Generar y Compartir PDF
@@ -247,6 +247,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingHorizontal: 4,
     color: '#2c3e50',
+  },
+  cellHeader: {
+    flex: 2,
+    fontSize: 13,
+    paddingHorizontal: 4,
+    color: '#2c3e50',
+  },
+  detalleTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginTop: 20,
+    color: '#2c3e50',
+  },
+  exportButton: {
+    marginTop: 20,
   },
 });
 

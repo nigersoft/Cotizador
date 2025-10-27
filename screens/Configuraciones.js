@@ -5,7 +5,7 @@ import { ACTUALIZAR_DB, EXPORTAR_DB } from '../ModuloDb/MDb.js';
 
 export default function Configuraciones() {
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={styles.container}>
       <Button
         mode="contained"
         style={styles.updateButton}
@@ -26,6 +26,11 @@ export default function Configuraciones() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   updateButton: {
     borderRadius: 15,
     marginBottom: 20,

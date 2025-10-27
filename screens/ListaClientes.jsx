@@ -5,7 +5,13 @@ import { StyleSheet, View, FlatList, ActivityIndicator, Alert } from 'react-nati
 import { Button } from 'react-native-paper';
 
 import ClienteItem from '../components/ClienteItem.jsx';
-import { getDBConnection, getAllClientes, deleteCliente } from '../ModuloDb/MDb.js';
+import {
+  getDBConnection,
+  getAllClientes,
+  deleteCliente,
+  getCotizacionesCountByCliente,
+  deleteCotizacionesByCliente
+} from '../ModuloDb/MDb.js';
 
 const ListaClientes = ({ navigation }) => {
   const [clientes, setClientes] = useState([]);
@@ -56,31 +62,74 @@ const ListaClientes = ({ navigation }) => {
     
   };
 
-  const handleDelete = (id) => {
-    Alert.alert(
-      "Confirmar eliminación",
-      "¿Estás seguro de que deseas eliminar este cliente?",
-      [
-        {
-          text: "Cancelar",
-          style: "cancel"
-        },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteCliente(db, id);
-              await loadClientes(db);
-              Alert.alert("Éxito", "Cliente eliminado correctamente");
-            } catch (error) {
-              console.error("Error deleting cliente", error);
-              Alert.alert("Error", "No se pudo eliminar el cliente");
+  const handleDelete = async (id) => {
+    try {
+      // Verificar si el cliente tiene cotizaciones asociadas
+      const cotizacionesCount = await getCotizacionesCountByCliente(db, id);
+
+      if (cotizacionesCount > 0) {
+        // Si tiene cotizaciones, mostrar advertencia detallada
+        Alert.alert(
+          "Advertencia",
+          `Este cliente tiene ${cotizacionesCount} cotización(es) asociada(s).\n\n¿Deseas eliminar el cliente de todas formas?\n\nNOTA: Las cotizaciones asociadas también serán eliminadas permanentemente.`,
+          [
+            {
+              text: "Cancelar",
+              style: "cancel"
+            },
+            {
+              text: "Eliminar todo",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  // Primero eliminar todas las cotizaciones asociadas
+                  await deleteCotizacionesByCliente(db, id);
+                  // Luego eliminar el cliente
+                  await deleteCliente(db, id);
+                  await loadClientes(db);
+                  Alert.alert(
+                    "Éxito",
+                    `Cliente y ${cotizacionesCount} cotización(es) eliminadas correctamente`
+                  );
+                } catch (error) {
+                  console.error("Error deleting cliente with cotizaciones", error);
+                  Alert.alert("Error", "No se pudo eliminar el cliente y sus cotizaciones");
+                }
+              }
             }
-          }
-        }
-      ]
-    );
+          ]
+        );
+      } else {
+        // Si no tiene cotizaciones, mostrar mensaje simple
+        Alert.alert(
+          "Confirmar eliminación",
+          "¿Estás seguro de que deseas eliminar este cliente?",
+          [
+            {
+              text: "Cancelar",
+              style: "cancel"
+            },
+            {
+              text: "Eliminar",
+              style: "destructive",
+              onPress: async () => {
+                try {
+                  await deleteCliente(db, id);
+                  await loadClientes(db);
+                  Alert.alert("Éxito", "Cliente eliminado correctamente");
+                } catch (error) {
+                  console.error("Error deleting cliente", error);
+                  Alert.alert("Error", "No se pudo eliminar el cliente");
+                }
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("Error checking cotizaciones count", error);
+      Alert.alert("Error", "No se pudo verificar las cotizaciones del cliente");
+    }
   };
 
   if (loading) {

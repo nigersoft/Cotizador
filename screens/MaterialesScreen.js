@@ -196,8 +196,8 @@ const handleEditVid = (Vidrio) => {
       >
              Actualizar
        </Button>
-       <Divider style={{ backgroundColor: '#CED0CE', marginVertical: 12 }} />
-       
+       <Divider style={styles.divider} />
+
        <FlatList
                data={vidrios}
                keyExtractor={(item) => item.Id.toString()}
@@ -306,8 +306,18 @@ const styles = StyleSheet.create({
     marginBottom:50,
     backgroundColor: '#2089dc',
   },
-  item: { flexDirection: 'row', justifyContent: 'space-between', padding: 8 },
-  costo: { fontWeight: 'bold' },
+  item: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 8,
+  },
+  costo: {
+    fontWeight: 'bold',
+  },
+  divider: {
+    backgroundColor: '#CED0CE',
+    marginVertical: 12,
+  },
 });
 
 export default MaterialesScreen;

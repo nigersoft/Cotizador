@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import { getDBConnection, getAllClientes } from '../ModuloDb/MDb.js';
 
@@ -9,7 +9,7 @@ const ClientesDropdown = ({ onChange, initialValue = null }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadClientes = async (cnx, isRefresh = false) => {
+  const loadClientes = useCallback(async (cnx, isRefresh = false) => {
     try {
       const listaClientes = await getAllClientes(cnx);
 
@@ -50,7 +50,7 @@ const ClientesDropdown = ({ onChange, initialValue = null }) => {
         setLoading(false);
       }
     }
-  };
+  }, [initialValue, onChange, selected]);
 
   useEffect(() => {
     (async () => {
@@ -62,7 +62,7 @@ const ClientesDropdown = ({ onChange, initialValue = null }) => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [loadClientes]);
 
   // Función que se ejecuta cuando el dropdown recibe el foco
   const handleFocus = async () => {
