@@ -28,29 +28,39 @@ const VentanaItem = ({ Ventana, onEdit, onDelete }) => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: '#fff',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 1 },
+    shadowRadius: 3,
   },
   infoContainer: {
     flex: 1,
+    justifyContent: 'center',
   },
   name: {
     fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    fontWeight: '700',
+    marginBottom: 6,
+    color: '#1A1C1E',
   },
   details: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2196F3',
   },
   actionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   actionButton: {
-    marginLeft: 15,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
   },
 });
 

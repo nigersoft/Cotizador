@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
+import { useFocusEffect } from '@react-navigation/native';
 import { getDBConnection,getAllVidrios} from '../ModuloDb/MDb.js';
 
 
@@ -25,19 +26,19 @@ const loadVidrios = async(cnx)=>{
 
 //////////////////////////////
 
-useEffect(() => {
+// Usar useFocusEffect para recargar vidrios cuando la pantalla se enfoca
+useFocusEffect(
+  React.useCallback(() => {
     (async () => {
       try {
         const connection = await getDBConnection();
-        
-       await loadVidrios(connection);
-
-        // Controla los errores
+        await loadVidrios(connection);
       } catch (error) {
         console.error('Error cargando Vidrios:', error);
-      } 
+      }
     })();
-  }, []);
+  }, [])
+);
 
 /////////////// handleSelect
 
@@ -76,23 +77,22 @@ return (
 
 const styles = StyleSheet.create({
   container: {
-    //flex: 1,
-   padding: 5,
-    
+    paddingVertical: 4,
   },
- 
- 
   dropdown: {
-    width: '100%',            // <- esto es lo que garantiza el ancho completo
+    width: '100%',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 50,
-    //marginBottom: 16,
-    backgroundColor: '#fff',
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 52,
+    backgroundColor: '#F5F5F5',
   },
-  
+  item: {
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
 });
 
 

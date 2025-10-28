@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Alert, FlatList, View, Modal, TextInput, TouchableOpacity, Text as RNText, Switch } from 'react-native';
+import { StyleSheet, Alert, FlatList, View, Modal, TextInput, TouchableOpacity, Text as RNText, Switch, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, Divider, Button } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VentanaItem from '../components/VentanaItem';
 import FormularioVentana from '../components/FormularioVentana';
 
@@ -10,7 +11,15 @@ import { formatearColones, CalcularCostos, GuardarCotizacion } from '../services
 // Separator component defined outside to prevent recreation
 const ItemSeparator = () => <View style={styles.separator} />;
 
+// ===== Helper de redondeo =====
+const redondear = (valor, paso = 100) => {
+  const n = Number(valor);
+  if (Number.isNaN(n)) return valor;
+  return Math.round(n / paso) * paso;
+};
+
 export default function CotizacionesScreen() {
+  const insets = useSafeAreaInsets();
   const [Altura, setAltura] = useState('');
   const [Base, setBase] = useState('');
   const [Descripcion, setDescripcion] = useState('');
@@ -19,6 +28,7 @@ export default function CotizacionesScreen() {
   const [Ventanas, setVentanas] = useState([]);
   const [Total, setTotal] = useState(0);
   const [db, setDb] = useState(null);
+  const [dropdownKey, setDropdownKey] = useState(0); // Para forzar re-render de dropdowns
 
   // ====== ESTADO PARA EDICIÓN INLINE (MODAL NATIVO) ======
   const [editVisible, setEditVisible] = useState(false);
@@ -29,6 +39,7 @@ export default function CotizacionesScreen() {
   const [eAltura, setEAltura] = useState('');
   const [eCosto, setECosto] = useState('');            // costo mostrado/editable
   const [autoCosto, setAutoCosto] = useState(true);    // recalcular automáticamente
+  const [pasoRedondeo, setPasoRedondeo] = useState(100);
 
   useEffect(() => {
     const loadDatabase = async () => {
@@ -43,19 +54,32 @@ export default function CotizacionesScreen() {
     loadDatabase();
   }, []);
 
+  // Función auxiliar para normalizar números (acepta "." y ",")
+  const normalizarNumero = (valor) => {
+    if (!valor) return null;
+    // Reemplazar coma por punto y eliminar espacios
+    const normalizado = String(valor).trim().replace(',', '.');
+    const numero = parseFloat(normalizado);
+    return isNaN(numero) ? null : numero;
+  };
+
   const Agregar = async () => {
+    // Normalizar Base y Altura para aceptar "." y ","
+    const baseNormalizada = normalizarNumero(Base);
+    const alturaNormalizada = normalizarNumero(Altura);
+
     if (
-      !Altura || isNaN(Altura) ||
-      !Base || isNaN(Base) ||
+      !baseNormalizada ||
+      !alturaNormalizada ||
       !Descripcion || Descripcion.trim() === '' ||
       !idCliente ||
       !idVidrio
     ) {
-      Alert.alert("Validación", "Por favor complete todos los campos.");
+      Alert.alert("Validación", "Por favor complete todos los campos con valores válidos.");
       return;
     }
 
-    const costoBase = await CalcularCostos(Base, Altura, idVidrio);
+    const costoBase = await CalcularCostos(baseNormalizada, alturaNormalizada, idVidrio);
     const precio = costoBase * 1.30;
 
     const nuevaVentana = {
@@ -63,8 +87,8 @@ export default function CotizacionesScreen() {
       IdVidrio: idVidrio,
       Descripcion,
       Costo: `${precio}`, // en tu modelo "Costo" guarda el precio final
-      Base,
-      Altura,
+      Base: baseNormalizada,
+      Altura: alturaNormalizada,
     };
 
     setVentanas(prev => [...prev, nuevaVentana]);
@@ -72,6 +96,9 @@ export default function CotizacionesScreen() {
     setBase('');
     setAltura('');
     setTotal(prevTotal => prevTotal + precio);
+
+    // Cerrar el teclado después de agregar la ventana
+    Keyboard.dismiss();
 
     Alert.alert(`Ventana agregada con ID: ${nuevaVentana.Id}`);
   };
@@ -83,10 +110,20 @@ export default function CotizacionesScreen() {
     }
 
     try {
-      await GuardarCotizacion(db, idCliente, Ventanas);
+      await GuardarCotizacion(idCliente, Ventanas);
       Alert.alert("¡Cotización guardada exitosamente!");
+
+      // Limpiar todo el formulario
       setVentanas([]);
       setTotal(0);
+      setDescripcion('');
+      setBase('');
+      setAltura('');
+      setIdCliente(null);
+      setIdVidrio(null);
+
+      // Incrementar key para forzar re-render de dropdowns
+      setDropdownKey(prev => prev + 1);
     } catch (error) {
       Alert.alert("Error al guardar", error.message);
     }
@@ -117,11 +154,15 @@ export default function CotizacionesScreen() {
     let cancelled = false;
     const recalc = async () => {
       if (!editVisible || !autoCosto || !editItem) return;
-      // Validamos números
-      if (!eBase || isNaN(eBase) || !eAltura || isNaN(eAltura)) return;
+
+      // Normalizar y validar números
+      const baseNormalizada = normalizarNumero(eBase);
+      const alturaNormalizada = normalizarNumero(eAltura);
+
+      if (!baseNormalizada || !alturaNormalizada) return;
 
       try {
-        const costoBase = await CalcularCostos(eBase, eAltura, editItem.IdVidrio);
+        const costoBase = await CalcularCostos(baseNormalizada, alturaNormalizada, editItem.IdVidrio);
         const precio = costoBase * 1.30;
         if (!cancelled) setECosto(String(precio));
       } catch {
@@ -135,17 +176,22 @@ export default function CotizacionesScreen() {
   const confirmarEdicion = async () => {
     if (!editItem) return;
 
+    // Normalizar valores numéricos
+    const baseNormalizada = normalizarNumero(eBase);
+    const alturaNormalizada = normalizarNumero(eAltura);
+    const costoNormalizado = normalizarNumero(eCosto);
+
     // Validaciones mínimas
     if (!eDesc.trim()) {
       Alert.alert('Validación', 'La descripción es requerida.');
       return;
     }
-    if (!eBase || isNaN(eBase) || !eAltura || isNaN(eAltura)) {
-      Alert.alert('Validación', 'Base y Altura deben ser numéricos.');
+    if (!baseNormalizada || !alturaNormalizada) {
+      Alert.alert('Validación', 'Base y Altura deben ser valores numéricos válidos.');
       return;
     }
-    if (!eCosto || isNaN(eCosto)) {
-      Alert.alert('Validación', 'El Costo debe ser numérico.');
+    if (!costoNormalizado) {
+      Alert.alert('Validación', 'El Costo debe ser un valor numérico válido.');
       return;
     }
 
@@ -153,13 +199,17 @@ export default function CotizacionesScreen() {
       const actualizado = {
         ...editItem,
         Descripcion: eDesc,
-        Base: eBase,
-        Altura: eAltura,
+        Base: baseNormalizada,
+        Altura: alturaNormalizada,
         // Conservamos IdVidrio original del item
-        Costo: String(eCosto), // permitimos override manual
+        Costo: String(costoNormalizado), // permitimos override manual
       };
 
       handleActualizarVentana(actualizado);
+
+      // Cerrar el teclado después de actualizar
+      Keyboard.dismiss();
+
       setEditVisible(false);
       setEditItem(null);
     } catch (err) {
@@ -168,6 +218,7 @@ export default function CotizacionesScreen() {
   };
 
   const cancelarEdicion = () => {
+    Keyboard.dismiss();
     setEditVisible(false);
     setEditItem(null);
   };
@@ -197,55 +248,62 @@ export default function CotizacionesScreen() {
 
   return (
     <>
-      <FlatList
-        data={Ventanas}
-        keyExtractor={(item) => String(item.Id)}
-        renderItem={({ item }) => (
-          <VentanaItem
-            Ventana={item}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        )}
-        ItemSeparatorComponent={ItemSeparator}
-        ListEmptyComponent={
-          <Text style={styles.emptyText}>No hay ventanas agregadas aún.</Text>
-        }
-        ListHeaderComponent={
-          <View style={styles.headerWrap}>
-            <FormularioVentana
-              Descripcion={Descripcion}
-              setDescripcion={setDescripcion}
-              Base={Base}
-              setBase={setBase}
-              Altura={Altura}
-              setAltura={setAltura}
-              idCliente={idCliente}
-              setIdCliente={setIdCliente}
-              idVidrio={idVidrio}
-              setIdVidrio={setIdVidrio}
-              onSubmit={Agregar}
-              textoBoton="Agregar ventana"
-              mostrarCliente={true}
-              mostrarVidrio={true}
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <FlatList
+          data={Ventanas}
+          keyExtractor={(item) => String(item.Id)}
+          renderItem={({ item }) => (
+            <VentanaItem
+              Ventana={item}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
             />
-            <Divider style={styles.divider} />
-            <Text style={styles.sectionTitle}>Ventanas agregadas:</Text>
-          </View>
-        }
-        ListFooterComponent={
-          <View style={styles.footerWrap}>
-            <Text style={styles.totalText}>TOTAL: {formatearColones(Total)}</Text>
-            <Button mode="contained" style={styles.saveButton} onPress={Guardar}>
-              Guardar Cotización
-            </Button>
-          </View>
-        }
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        initialNumToRender={8}
-        removeClippedSubviews
-      />
+          )}
+          ItemSeparatorComponent={ItemSeparator}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No hay ventanas agregadas aún.</Text>
+          }
+          ListHeaderComponent={
+            <View style={styles.headerWrap}>
+              <FormularioVentana
+                key={dropdownKey}
+                Descripcion={Descripcion}
+                setDescripcion={setDescripcion}
+                Base={Base}
+                setBase={setBase}
+                Altura={Altura}
+                setAltura={setAltura}
+                idCliente={idCliente}
+                setIdCliente={setIdCliente}
+                idVidrio={idVidrio}
+                setIdVidrio={setIdVidrio}
+                onSubmit={Agregar}
+                textoBoton="Agregar ventana"
+                mostrarCliente={true}
+                mostrarVidrio={true}
+              />
+              <Divider style={styles.divider} />
+              <Text style={styles.sectionTitle}>Ventanas agregadas:</Text>
+            </View>
+          }
+          ListFooterComponent={
+            <View style={[styles.footerWrap, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+              <Text style={styles.totalText}>TOTAL: {formatearColones(Total)}</Text>
+              <Button mode="contained" style={styles.saveButton} onPress={Guardar}>
+                Guardar Cotización
+              </Button>
+            </View>
+          }
+          contentContainerStyle={[styles.container, { paddingTop: insets.top }]}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={8}
+          removeClippedSubviews
+        />
+      </KeyboardAvoidingView>
 
       {/* ===== MODAL NATIVO PARA EDICIÓN INLINE ===== */}
       <Modal
@@ -254,7 +312,10 @@ export default function CotizacionesScreen() {
         transparent
         onRequestClose={cancelarEdicion}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <View style={styles.modalCard}>
             <RNText style={styles.modalTitle}>Editar ventana</RNText>
 
@@ -294,17 +355,43 @@ export default function CotizacionesScreen() {
             </View>
 
             <RNText style={styles.inputLabel}>Costo (editable)</RNText>
-            <TextInput
-              value={eCosto}
-              onChangeText={(t) => {
-                setECosto(t);
-                // Si el usuario escribe manualmente, desactivamos el auto-cálculo
-                if (autoCosto) setAutoCosto(false);
-              }}
-              placeholder="Costo final"
-              keyboardType="numeric"
-              style={styles.input}
-            />
+            <View style={styles.costoRow}>
+              <TextInput
+                value={eCosto}
+                onChangeText={(t) => {
+                  setECosto(t);
+                  // Si el usuario escribe manualmente, desactivamos el auto-cálculo
+                  if (autoCosto) setAutoCosto(false);
+                }}
+                placeholder="Costo final"
+                keyboardType="numeric"
+                style={[styles.input, styles.costoInput]}
+              />
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.roundBtn]}
+                onPress={() => setECosto(String(redondear(eCosto, pasoRedondeo)))}
+              >
+                <RNText style={styles.roundBtnText}>Redondear</RNText>
+              </TouchableOpacity>
+            </View>
+
+            {/* Selector rápido del paso */}
+            <View style={styles.stepPillContainer}>
+              {[100, 500, 1000].map(p => (
+                <TouchableOpacity
+                  key={p}
+                  style={[
+                    styles.stepPill,
+                    pasoRedondeo === p && styles.stepPillActive
+                  ]}
+                  onPress={() => setPasoRedondeo(p)}
+                >
+                  <RNText style={pasoRedondeo === p ? styles.stepPillTextActive : styles.stepPillText}>
+                    ₡{p}
+                  </RNText>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.modalActions}>
               <TouchableOpacity style={[styles.actionBtn, styles.cancelBtn]} onPress={cancelarEdicion}>
@@ -315,127 +402,199 @@ export default function CotizacionesScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardView: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
   container: {
     padding: 16,
-    backgroundColor: '#f5f5f5',
-    paddingBottom: 32,
+    backgroundColor: '#F5F7FA',
   },
   headerWrap: {
     marginBottom: 12,
   },
   footerWrap: {
     marginTop: 16,
-    paddingBottom: 24,
+    paddingTop: 20,
+    backgroundColor: '#F5F7FA',
   },
   divider: {
     marginVertical: 16,
-    backgroundColor: '#ccc',
+    backgroundColor: '#E0E0E0',
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: '#1A1C1E',
   },
   totalText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     textAlign: 'right',
-    marginTop: 20,
-    marginBottom: 10,
-    color: '#000',
+    marginTop: 8,
+    marginBottom: 16,
+    color: '#2196F3',
   },
   saveButton: {
-    backgroundColor: '#2196F3',
-    borderRadius: 8,
-    marginBottom: 30,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   emptyText: {
     textAlign: 'center',
     color: '#666',
-    marginTop: 8,
+    marginTop: 24,
+    fontSize: 14,
+    fontStyle: 'italic',
   },
   separator: {
-    height: 8,
+    height: 12,
   },
 
   // Modal styles
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 480,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    elevation: 4,
+    maxWidth: 500,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-    color: '#111',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 20,
+    color: '#1A1C1E',
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '600',
     color: '#666',
-    marginTop: 8,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 6,
   },
   input: {
-    backgroundColor: '#fff',
-    borderColor: '#ddd',
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
   },
   switchRow: {
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 16,
+    marginBottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#F5F5F5',
+    padding: 12,
+    borderRadius: 12,
   },
   switchLabel: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#333',
-    marginRight: 8,
+    flex: 1,
+    marginRight: 12,
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
-    marginTop: 16,
+    marginTop: 24,
   },
   actionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   cancelBtn: {
-    backgroundColor: '#eee',
+    backgroundColor: '#F5F5F5',
   },
   saveBtn: {
     backgroundColor: '#2196F3',
   },
+  roundBtn: {
+    backgroundColor: '#2196F3',
+  },
   actionText: {
     fontWeight: '700',
-    color: '#222',
+    fontSize: 15,
+    color: '#333',
   },
   saveBtnText: {
     fontWeight: '700',
-    color: '#fff',
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  roundBtnText: {
+    fontWeight: '700',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  costoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  costoInput: {
+    flex: 1,
+  },
+  stepPillContainer: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  stepPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  stepPillActive: {
+    backgroundColor: '#2196F3',
+    borderColor: '#2196F3',
+  },
+  stepPillText: {
+    color: '#333',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  stepPillTextActive: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
+import { useFocusEffect } from '@react-navigation/native';
 import { getDBConnection, getAllClientes } from '../ModuloDb/MDb.js';
 
 const ClientesDropdown = ({ onChange, initialValue = null }) => {
@@ -64,6 +65,23 @@ const ClientesDropdown = ({ onChange, initialValue = null }) => {
     })();
   }, [loadClientes]);
 
+  // Recargar clientes cuando la pantalla se enfoca
+  useFocusEffect(
+    React.useCallback(() => {
+      // Solo refrescar si ya se cargó la primera vez
+      if (!loading) {
+        (async () => {
+          try {
+            const connection = await getDBConnection();
+            await loadClientes(connection, true);
+          } catch (error) {
+            console.error('Error refrescando Clientes:', error);
+          }
+        })();
+      }
+    }, [loading, loadClientes])
+  );
+
   // Función que se ejecuta cuando el dropdown recibe el foco
   const handleFocus = async () => {
     // Evitar múltiples recargas simultáneas
@@ -118,17 +136,17 @@ const ClientesDropdown = ({ onChange, initialValue = null }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 5,
+    paddingVertical: 4,
     position: 'relative',
   },
   dropdown: {
     width: '100%',
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    height: 50,
-    backgroundColor: '#fff',
+    borderColor: '#E0E0E0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 52,
+    backgroundColor: '#F5F5F5',
   },
   refreshing: {
     opacity: 0.7,

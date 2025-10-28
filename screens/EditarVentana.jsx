@@ -60,7 +60,7 @@ const EditarVentana = ({ route, navigation }) => {
       Altura: parseFloat(altura),
     };
 
-    actualizarVentana(db,updatedVentana);
+    actualizarVentana(updatedVentana);
     Alert.alert('✅ Éxito', 'Ventana actualizada correctamente');
     navigation.goBack();
   };

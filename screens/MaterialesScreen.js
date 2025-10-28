@@ -132,18 +132,18 @@ const handleEditVid = (Vidrio) => {
         Alert.alert('Error', 'Debe digitar un valor');
         return;
       }
-  
+
       try {
         const updatedMaterial = {
           Id: selectedMaterial,
           Costo: parseFloat(costo),
-          
+
         };
 
-              
+
               await update_Material(db, updatedMaterial);
               Alert.alert('Éxito', 'Costo actualizado correctamente');
-              
+
               //Actualiza el costo para verlo en el dropdown
               setMateriales(prev =>
                 prev.map(item =>
@@ -196,6 +196,7 @@ const handleEditVid = (Vidrio) => {
       >
              Actualizar
        </Button>
+
        <Divider style={styles.divider} />
 
        <FlatList

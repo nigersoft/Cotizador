@@ -1,4 +1,4 @@
-import { getDBConnection, getAllMateriales, getCostoVidrioById } from '../ModuloDb/MDb.js';
+import { getDBConnection, getAllMateriales, getCostoVidrioById, getPorcentajeGanancia } from '../ModuloDb/MDb.js';
 import { Alert } from 'react-native';
 
 export const CalcularCostos = async(B,A,IdVid) =>{
@@ -10,6 +10,7 @@ export const CalcularCostos = async(B,A,IdVid) =>{
 
      const listaMateriales= await getAllMateriales(db)
      const CostoVidrio = await getCostoVidrioById(db,IdVid)
+     const PorcentajeGanancia = await getPorcentajeGanancia(db)
      
      
     //     // Almacena los costos de cada material de la bd
@@ -47,6 +48,8 @@ export const CalcularCostos = async(B,A,IdVid) =>{
      const Vidrio =((Base/100) * (Altura/100))  * CostoVidrio
 
      const CostoTotal = Cargador + Umbra + Jamba + Inferior + Superior + LateralMovil + LateralFijo + Cerradura + Rodin + Empaque + GuiPlastica + Felpa + Tornillos
+     const CostoBase = CostoTotal + Vidrio
+     const CostoConGanancia = CostoBase * (1 + (PorcentajeGanancia / 100))
       /////////// ver consola
 
 console.log('📦 Desglose de Cálculo de Materiales:');
@@ -63,18 +66,19 @@ console.log('Empaque:         ', Empaque);
 console.log('Guía Plástica:   ', GuiPlastica);
 console.log('Felpa:           ', Felpa);
 console.log('Tornillos:       ', Tornillos);
-console.log('Vidrio:       ', Vidrio);
-console.log('Costo Total:       ', CostoTotal + Vidrio);
-console.log('Costo Empaque: ', CostoEmpaque);
-console.log('Base:       ', Base);
-console.log('Altura:       ', Altura);
+console.log('Vidrio:          ', Vidrio);
+console.log('Costo Base:      ', CostoBase);
+console.log('% Ganancia:      ', PorcentajeGanancia);
+console.log('Costo Final:     ', CostoConGanancia);
+console.log('Base:            ', Base);
+console.log('Altura:          ', Altura);
 
 
 
       ///////////////////////
-    
 
-     return  CostoTotal + Vidrio
+
+     return  CostoConGanancia
   } catch (error) {
     console.error('Error al obtener datos de los materiales:', error);
     throw error;
@@ -92,9 +96,10 @@ export const formatearColones = (valor) => {
 
 /// Guarda las cotizaciones
 
-export const GuardarCotizacion = async (db, IdCliente,Ventanas) => {
+export const GuardarCotizacion = async (IdCliente, Ventanas) => {
+  const db = await getDBConnection(); // Obtener conexión del singleton
 
-  const { Fecha, Descripcion } = await DescripcionFecha(db,IdCliente);
+  const { Fecha, Descripcion } = await DescripcionFecha(IdCliente);
 
   try {
     await db.execAsync('BEGIN TRANSACTION');
@@ -122,11 +127,10 @@ export const GuardarCotizacion = async (db, IdCliente,Ventanas) => {
     }
 
     await db.execAsync('COMMIT');
-     await db.closeAsync();
    // return { success: true, insertId: idCotizacion };
 
   } catch (error) {
-    
+
     console.error('Error al guardar cotización:', error);
     await db.execAsync('ROLLBACK');
      Alert.alert(`ERROR al Guardar Cotización!!!`)
@@ -137,7 +141,8 @@ export const GuardarCotizacion = async (db, IdCliente,Ventanas) => {
 
 /// Descripcion y fecha
 
-const  DescripcionFecha = async(db,Id)=>{
+const  DescripcionFecha = async(Id)=>{
+  const db = await getDBConnection(); // Obtener conexión del singleton
 
   try{
 
@@ -163,10 +168,11 @@ const  DescripcionFecha = async(db,Id)=>{
 
   } catch (error){
     console.error('Error al crear Descripcion:', error);
+    throw error; // Re-lanzar el error para que GuardarCotizacion pueda manejarlo
 
   }
 
-  
+
 }
 
 /////// Obtiene el id de la cotizacion
@@ -208,8 +214,9 @@ export const VerTABLA = async (db) => {
 
 ///////////////////////// Actualizar ventana //////////////////////////////////////
 
-export const actualizarVentana = async (db, ventana) => {
-  const { Id, IdCotizacion, IdVidrio, Descripcion, Costo,Base,Altura } = ventana;
+export const actualizarVentana = async (ventana) => {
+  const db = await getDBConnection(); // Obtener conexión del singleton
+  const { Id, IdCotizacion, IdVidrio, Descripcion, Costo, Base, Altura } = ventana;
   try {
     const result = await db.runAsync(
       'UPDATE Ventanas SET IdCotizacion = ?, IdVidrio = ?, Descripcion = ?, Costo = ?, Base = ?, Altura = ? WHERE Id = ?',

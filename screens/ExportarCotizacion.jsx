@@ -11,6 +11,10 @@ const ExportarCotizacion = ({ route, navigation }) => {
   const { cotizacion } = route.params;
   const [ventanas, setVentanas] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [impuestoAplicado, setImpuestoAplicado] = useState(null); // 'agregado', 'incluido', o null
+  const [montoImpuesto, setMontoImpuesto] = useState(0);
+  const [costoSinImpuesto, setCostoSinImpuesto] = useState(0);
+  const [costoTotal, setCostoTotal] = useState(cotizacion.Costo);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -28,6 +32,35 @@ const ExportarCotizacion = ({ route, navigation }) => {
     cargarDatos();
   }, [cotizacion.Id]);
 
+  const agregarImpuesto = () => {
+    const costoBase = cotizacion.Costo;
+    const impuesto = costoBase * 0.13;
+    const nuevoTotal = costoBase + impuesto;
+
+    setImpuestoAplicado('agregado');
+    setMontoImpuesto(impuesto);
+    setCostoSinImpuesto(costoBase);
+    setCostoTotal(nuevoTotal);
+  };
+
+  const incluirImpuesto = () => {
+    const costoConImpuesto = cotizacion.Costo;
+    const costoBase = costoConImpuesto / 1.13;
+    const impuesto = costoBase * 0.13;
+
+    setImpuestoAplicado('incluido');
+    setMontoImpuesto(impuesto);
+    setCostoSinImpuesto(costoBase);
+    setCostoTotal(costoConImpuesto);
+  };
+
+  const resetearImpuesto = () => {
+    setImpuestoAplicado(null);
+    setMontoImpuesto(0);
+    setCostoSinImpuesto(0);
+    setCostoTotal(cotizacion.Costo);
+  };
+
   const generarHTML = () => {
     const ventanasHtml = ventanas.map(v => `
       <tr>
@@ -37,6 +70,22 @@ const ExportarCotizacion = ({ route, navigation }) => {
         <td>₡${Number(v.Costo).toLocaleString('es-CR')}</td>
       </tr>
     `).join('');
+
+    // Generar el desglose de impuestos si está aplicado
+    let desgloseCostos = '';
+    if (impuestoAplicado) {
+      if (impuestoAplicado === 'agregado') {
+        desgloseCostos = `
+          <div class="data"><span class="label">Subtotal:</span> ${formatearColones(costoSinImpuesto)}</div>
+          <div class="data"><span class="label">Impuesto de ventas (13%):</span> ${formatearColones(montoImpuesto)}</div>
+        `;
+      } else if (impuestoAplicado === 'incluido') {
+        desgloseCostos = `
+          <div class="data"><span class="label">Subtotal:</span> ${formatearColones(costoSinImpuesto)}</div>
+          <div class="data"><span class="label">Impuesto de ventas (13%):</span> ${formatearColones(montoImpuesto)}</div>
+        `;
+      }
+    }
 
     return `
       <html>
@@ -86,6 +135,10 @@ const ExportarCotizacion = ({ route, navigation }) => {
               text-align: right;
               margin-top: 20px;
             }
+            .costos-section {
+              margin-top: 20px;
+              text-align: right;
+            }
           </style>
         </head>
         <body>
@@ -95,10 +148,9 @@ const ExportarCotizacion = ({ route, navigation }) => {
             <div class="data"><span class="label">Cliente:</span> ${cotizacion.Nombre}</div>
             <div class="data"><span class="label">Teléfono:</span> ${cotizacion.Telefono}</div>
             <div class="data"><span class="label">Descripción:</span> ${cotizacion.Descripcion}</div>
-            <div class="data total">Costo Total: ${formatearColones(cotizacion.Costo)}</div>
           </div>
 
-          <h2>Ventanas Cotizadas</h2>
+          <h2>Detalle de Ventanas</h2>
           <table>
             <thead>
               <tr>
@@ -112,6 +164,11 @@ const ExportarCotizacion = ({ route, navigation }) => {
               ${ventanasHtml}
             </tbody>
           </table>
+
+          <div class="costos-section">
+            ${desgloseCostos}
+            <div class="data total">Costo Total: ${formatearColones(costoTotal)}</div>
+          </div>
         </body>
       </html>
     `;
@@ -157,9 +214,6 @@ const ExportarCotizacion = ({ route, navigation }) => {
             <Text style={styles.sectionTitle}>Descripción:</Text>
             <Text style={styles.info}>{cotizacion.Descripcion}</Text>
 
-            <Text style={styles.sectionTitle}>Costo Total:</Text>
-            <Text style={styles.total}>{formatearColones(cotizacion.Costo)}</Text>
-
             <Text style={styles.detalleTitle}>Detalle de Ventanas:</Text>
             <View style={styles.tableHeader}>
               <Text style={styles.cellHeader}>Descripción</Text>
@@ -177,6 +231,62 @@ const ExportarCotizacion = ({ route, navigation }) => {
                 <Text style={styles.cell}>₡{Number(v.Costo).toLocaleString('es-CR')}</Text>
               </View>
             ))}
+
+            {/* Sección de impuestos */}
+            {impuestoAplicado && (
+              <View style={styles.impuestoSection}>
+                <View style={styles.impuestoRow}>
+                  <Text style={styles.impuestoLabel}>Subtotal:</Text>
+                  <Text style={styles.impuestoValue}>{formatearColones(costoSinImpuesto)}</Text>
+                </View>
+                <View style={styles.impuestoRow}>
+                  <Text style={styles.impuestoLabel}>Impuesto de ventas (13%):</Text>
+                  <Text style={styles.impuestoValue}>{formatearColones(montoImpuesto)}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Costo Total debajo de la tabla */}
+            <View style={styles.costoTotalSection}>
+              <Text style={styles.sectionTitle}>Costo Total:</Text>
+              <Text style={styles.total}>{formatearColones(costoTotal)}</Text>
+
+              {/* Botones de impuesto */}
+              <View style={styles.botonesImpuesto}>
+                {!impuestoAplicado ? (
+                  <>
+                    <Button
+                      mode="outlined"
+                      compact
+                      onPress={agregarImpuesto}
+                      style={styles.botonImpuesto}
+                      labelStyle={styles.botonImpuestoLabel}
+                    >
+                      + Agregar impuesto
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      compact
+                      onPress={incluirImpuesto}
+                      style={styles.botonImpuesto}
+                      labelStyle={styles.botonImpuestoLabel}
+                    >
+                      Incluir impuesto
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    mode="outlined"
+                    compact
+                    onPress={resetearImpuesto}
+                    style={styles.botonImpuesto}
+                    labelStyle={styles.botonImpuestoLabel}
+                  >
+                    Quitar impuesto
+                  </Button>
+                )}
+              </View>
+            </View>
           </ScrollView>
 
           <Button
@@ -262,6 +372,50 @@ const styles = StyleSheet.create({
   },
   exportButton: {
     marginTop: 20,
+  },
+  impuestoSection: {
+    marginTop: 15,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#bdc3c7',
+  },
+  impuestoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  impuestoLabel: {
+    fontSize: 14,
+    color: '#34495e',
+    fontWeight: '500',
+  },
+  impuestoValue: {
+    fontSize: 14,
+    color: '#34495e',
+    fontWeight: 'bold',
+  },
+  costoTotalSection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 2,
+    borderTopColor: '#1abc9c',
+  },
+  botonesImpuesto: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    gap: 8,
+  },
+  botonImpuesto: {
+    marginRight: 8,
+    marginBottom: 8,
+    borderColor: '#3498db',
+  },
+  botonImpuestoLabel: {
+    fontSize: 11,
+    textTransform: 'none',
   },
 });
 

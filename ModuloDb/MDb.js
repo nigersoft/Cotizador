@@ -385,7 +385,7 @@ export const getCostoVidrioById = async (db, id) => {
 export const getAllCotizaciones = async (db) => {
   return await withReconnection(async (validDb) => {
     const Cotizaciones = await validDb.getAllAsync(
-      'Select Coti.Id,Cli.Id as IdCliente,Coti.Descripcion,Cli.Nombre, Cli.Telefono,Sum(V.Costo) as Costo from Cotizaciones as Coti inner JOIN Clientes as Cli on Coti.IdCliente = Cli.Id Inner JOIN Ventanas as V ON Coti.Id = V.IdCotizacion GROUP by Coti.Id'
+      'Select Coti.Id,Cli.Id as IdCliente,Coti.Descripcion,Cli.Nombre, Cli.Telefono,Sum(V.Costo) as Costo from Cotizaciones as Coti inner JOIN Clientes as Cli on Coti.IdCliente = Cli.Id Inner JOIN Ventanas as V ON Coti.Id = V.IdCotizacion GROUP by Coti.Id ORDER BY Coti.Id DESC'
     );
     return Cotizaciones;
   }, db);
@@ -459,6 +459,40 @@ export const getClientePorId = async (db, idCliente) => {
       return null;
     }
   }, db, idCliente);
+};
+
+export const insertVentana = async (db, ventana) => {
+  return await withReconnection(async (validDb) => {
+    try {
+      const { IdCotizacion, IdVidrio, Descripcion, Costo, Base, Altura } = ventana;
+      const result = await validDb.runAsync(
+        'INSERT INTO Ventanas (IdCotizacion, IdVidrio, Descripcion, Costo, Base, Altura) VALUES (?, ?, ?, ?, ?, ?)',
+        IdCotizacion, IdVidrio, Descripcion, Costo, Base, Altura
+      );
+      return { rowsAffected: result.changes, insertId: result.lastInsertRowId };
+    } catch (error) {
+      console.error("Error al insertar ventana:", error);
+      throw error;
+    }
+  }, db, ventana);
+};
+
+// **************** Porcentaje de Ganancia *************************
+export const getPorcentajeGanancia = async (db) => {
+  return await withReconnection(async (validDb) => {
+    const result = await validDb.getFirstAsync('SELECT Porcentaje FROM PorcentajeGanancia WHERE Id = 1');
+    return result?.Porcentaje || 30.0; // Valor por defecto si no existe
+  }, db);
+};
+
+export const updatePorcentajeGanancia = async (db, porcentaje) => {
+  return await withReconnection(async (validDb) => {
+    const result = await validDb.runAsync(
+      'UPDATE PorcentajeGanancia SET Porcentaje = ? WHERE Id = 1',
+      porcentaje
+    );
+    return result.changes;
+  }, db, porcentaje);
 };
 
 // ========= Utilidades de actualización / exportación =========
