@@ -25,7 +25,11 @@ export default function DrawerNavigator() {
   return (
     <Drawer.Navigator drawerContent={renderDrawerContent}>
       <Drawer.Screen name="Cotizaciones" component={CotizacionesScreen} />
-      <Drawer.Screen name="CotizacionesGen" component={CotizacionesGeneradas} />
+      <Drawer.Screen
+        name="CotizacionesGen"
+        component={CotizacionesGeneradas}
+        options={{ title: 'Cotizaciones Generadas' }}
+      />
       {/* Se registran las pantallas asociadas a los submenús de Menu3 */}
       <Drawer.Screen name="ListaClientes" component={ListaClientes} />
       <Drawer.Screen name="Materiales" component={MaterialesScreen} />

@@ -12,10 +12,12 @@ import {
   getVentanasPorCotizacion,
   deleteVentanas,
   UpdateCotizacion,
-  insertVentana
+  insertVentana,
+  updateCotizacionImpuestos,
+  getCotizacionById
 } from '../ModuloDb/MDb';
 
-import { CalcularCostos, actualizarVentana } from '../services/ModuloFunciones';
+import { CalcularCostos, actualizarVentana, formatearColones } from '../services/ModuloFunciones';
 
 import VentanaItem from '../components/VentanaItem';
 import ClientesDropdown from '../components/ClientesDropdown';
@@ -56,6 +58,12 @@ const EditarCotizacion = ({ route, navigation }) => {
   const [autoCosto, setAutoCosto] = useState(true);
   const [pasoRedondeo, setPasoRedondeo] = useState(100);
 
+  // ====== Estado para impuestos ======
+  const [impuestoAplicado, setImpuestoAplicado] = useState(null); // 'agregado', 'incluido', o null
+  const [montoImpuesto, setMontoImpuesto] = useState(0);
+  const [costoSinImpuesto, setCostoSinImpuesto] = useState(0);
+  const [costoTotal, setCostoTotal] = useState(0);
+
   // Función auxiliar para normalizar números (acepta "." y ",")
   const normalizarNumero = (valor) => {
     if (!valor) return null;
@@ -64,6 +72,62 @@ const EditarCotizacion = ({ route, navigation }) => {
     const numero = parseFloat(normalizado);
     return isNaN(numero) ? null : numero;
   };
+
+  // === Calcular costo total de ventanas ===
+  const calcularCostoVentanas = () => {
+    return ventanas.reduce((sum, v) => sum + (v.Costo || 0), 0);
+  };
+
+  // === Funciones de impuestos ===
+  const agregarImpuesto = () => {
+    const costoBase = calcularCostoVentanas();
+    const impuesto = costoBase * 0.13;
+    const nuevoTotal = costoBase + impuesto;
+
+    setImpuestoAplicado('agregado');
+    setMontoImpuesto(impuesto);
+    setCostoSinImpuesto(costoBase);
+    setCostoTotal(nuevoTotal);
+  };
+
+  const incluirImpuesto = () => {
+    const costoConImpuesto = calcularCostoVentanas();
+    const costoBase = costoConImpuesto / 1.13;
+    const impuesto = costoBase * 0.13;
+
+    setImpuestoAplicado('incluido');
+    setMontoImpuesto(impuesto);
+    setCostoSinImpuesto(costoBase);
+    setCostoTotal(costoConImpuesto);
+  };
+
+  const resetearImpuesto = () => {
+    setImpuestoAplicado(null);
+    setMontoImpuesto(0);
+    setCostoSinImpuesto(0);
+    setCostoTotal(0);
+  };
+
+  // === Recalcular impuesto cuando cambien las ventanas ===
+  useEffect(() => {
+    if (impuestoAplicado && ventanas.length > 0) {
+      if (impuestoAplicado === 'agregado') {
+        const costoBase = calcularCostoVentanas();
+        const impuesto = costoBase * 0.13;
+        const nuevoTotal = costoBase + impuesto;
+        setMontoImpuesto(impuesto);
+        setCostoSinImpuesto(costoBase);
+        setCostoTotal(nuevoTotal);
+      } else if (impuestoAplicado === 'incluido') {
+        const costoConImpuesto = calcularCostoVentanas();
+        const costoBase = costoConImpuesto / 1.13;
+        const impuesto = costoBase * 0.13;
+        setMontoImpuesto(impuesto);
+        setCostoSinImpuesto(costoBase);
+        setCostoTotal(costoConImpuesto);
+      }
+    }
+  }, [ventanas, impuestoAplicado]);
 
   // === Inicialización ===
   useEffect(() => {
@@ -86,10 +150,26 @@ const EditarCotizacion = ({ route, navigation }) => {
   // === Cargar datos desde SQL ===
   const cargarDatos = useCallback(async (database) => {
     const v = await getVentanasPorCotizacion(database, cotizacion.Id);
-    setIdCliente(cotizacion.IdCliente);
-    setDescripcion(cotizacion.Descripcion ?? '');
     setVentanas(v);
-  }, [cotizacion.Id, cotizacion.IdCliente, cotizacion.Descripcion]);
+
+    // Cargar cotización actualizada desde la BD para obtener datos de impuesto más recientes
+    const cotizacionActualizada = await getCotizacionById(database, cotizacion.Id);
+
+    if (cotizacionActualizada) {
+      setIdCliente(cotizacionActualizada.IdCliente);
+      setDescripcion(cotizacionActualizada.Descripcion ?? '');
+
+      // Cargar datos de impuesto desde la BD
+      if (cotizacionActualizada.TipoImpuesto) {
+        setImpuestoAplicado(cotizacionActualizada.TipoImpuesto);
+        setMontoImpuesto(cotizacionActualizada.MontoImpuesto || 0);
+        setCostoSinImpuesto(cotizacionActualizada.CostoSinImpuesto || 0);
+        setCostoTotal(cotizacionActualizada.CostoTotal || 0);
+      } else {
+        resetearImpuesto();
+      }
+    }
+  }, [cotizacion.Id]);
 
   // ====== Editar: abrir modal con datos del ítem ======
   const handleEdit = (ventana) => {
@@ -270,10 +350,24 @@ const EditarCotizacion = ({ route, navigation }) => {
   const guardarCambios = async () => {
     try {
       if (!db) throw new Error('BD no inicializada');
+
+      // Actualizar descripción
       await UpdateCotizacion(db, cotizacion.Id, Descripcion);
+
+      // Actualizar información de impuestos
+      await updateCotizacionImpuestos(
+        db,
+        cotizacion.Id,
+        impuestoAplicado,
+        montoImpuesto,
+        costoSinImpuesto,
+        impuestoAplicado ? costoTotal : calcularCostoVentanas()
+      );
+
       Alert.alert('✅ Guardado', 'Cambios de la cotización actualizados');
       navigation.navigate('CotizacionesGen');
     } catch (error) {
+      console.error('Error al guardar:', error);
       Alert.alert('Error', 'No se pudo guardar');
     }
   };
@@ -331,6 +425,66 @@ const EditarCotizacion = ({ route, navigation }) => {
         >
           Agregar Nueva Ventana
         </Button>
+
+        {/* Sección de impuestos */}
+        <View style={styles.impuestoSection}>
+          {impuestoAplicado && (
+            <View style={styles.desglose}>
+              <View style={styles.impuestoRow}>
+                <Text style={styles.impuestoLabel}>Subtotal:</Text>
+                <Text style={styles.impuestoValue}>{formatearColones(costoSinImpuesto)}</Text>
+              </View>
+              <View style={styles.impuestoRow}>
+                <Text style={styles.impuestoLabel}>Impuesto (13%):</Text>
+                <Text style={styles.impuestoValue}>{formatearColones(montoImpuesto)}</Text>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total:</Text>
+            <Text style={styles.totalValue}>
+              {impuestoAplicado
+                ? formatearColones(costoTotal)
+                : formatearColones(calcularCostoVentanas())}
+            </Text>
+          </View>
+
+          <View style={styles.botonesImpuesto}>
+            {!impuestoAplicado ? (
+              <>
+                <Button
+                  mode="outlined"
+                  compact
+                  onPress={agregarImpuesto}
+                  style={styles.botonImpuesto}
+                  labelStyle={styles.botonImpuestoLabel}
+                >
+                  + Agregar impuesto
+                </Button>
+                <Button
+                  mode="outlined"
+                  compact
+                  onPress={incluirImpuesto}
+                  style={styles.botonImpuesto}
+                  labelStyle={styles.botonImpuestoLabel}
+                >
+                  Incluir impuesto
+                </Button>
+              </>
+            ) : (
+              <Button
+                mode="outlined"
+                compact
+                onPress={resetearImpuesto}
+                style={styles.botonImpuesto}
+                labelStyle={styles.botonImpuestoLabel}
+              >
+                Quitar impuesto
+              </Button>
+            )}
+          </View>
+        </View>
 
         <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           <Button
@@ -689,6 +843,71 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
+  },
+  // Estilos para impuestos
+  impuestoSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  desglose: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  impuestoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  impuestoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  impuestoValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  totalLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1A1C1E',
+  },
+  totalValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#2196F3',
+  },
+  botonesImpuesto: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    flexWrap: 'wrap',
+    marginTop: 12,
+    gap: 8,
+  },
+  botonImpuesto: {
+    marginRight: 8,
+    marginBottom: 8,
+    borderColor: '#2196F3',
+  },
+  botonImpuestoLabel: {
+    fontSize: 12,
+    textTransform: 'none',
   },
 });
 

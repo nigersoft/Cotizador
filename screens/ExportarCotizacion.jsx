@@ -1,10 +1,11 @@
 // screens/ExportarCotizacion.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Button, Text } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getDBConnection, ExportarVentanasPorCotizacion } from '../ModuloDb/MDb';
+import { getDBConnection, ExportarVentanasPorCotizacion, updateCotizacionImpuestos, getCotizacionById } from '../ModuloDb/MDb';
 import { formatearColones } from '../services/ModuloFunciones';
 
 const ExportarCotizacion = ({ route, navigation }) => {
@@ -15,22 +16,45 @@ const ExportarCotizacion = ({ route, navigation }) => {
   const [montoImpuesto, setMontoImpuesto] = useState(0);
   const [costoSinImpuesto, setCostoSinImpuesto] = useState(0);
   const [costoTotal, setCostoTotal] = useState(cotizacion.Costo);
+  const [cambiosPendientes, setCambiosPendientes] = useState(false);
 
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const db = await getDBConnection();
-        const datosVentanas = await ExportarVentanasPorCotizacion(db, cotizacion.Id);
-        setVentanas(datosVentanas);
-      } catch (error) {
-        console.error("Error al cargar ventanas", error);
-        Alert.alert("Error", "No se pudo cargar la información");
-      } finally {
-        setLoading(false);
+  const cargarDatos = useCallback(async () => {
+    try {
+      setLoading(true);
+      const db = await getDBConnection();
+      const datosVentanas = await ExportarVentanasPorCotizacion(db, cotizacion.Id);
+      setVentanas(datosVentanas);
+
+      // Cargar estado del impuesto desde la BD
+      const cotizacionActualizada = await getCotizacionById(db, cotizacion.Id);
+      if (cotizacionActualizada && cotizacionActualizada.TipoImpuesto) {
+        setImpuestoAplicado(cotizacionActualizada.TipoImpuesto);
+        setMontoImpuesto(cotizacionActualizada.MontoImpuesto || 0);
+        setCostoSinImpuesto(cotizacionActualizada.CostoSinImpuesto || 0);
+        setCostoTotal(cotizacionActualizada.CostoTotal || cotizacion.Costo);
+      } else {
+        // Si no hay impuesto guardado, resetear todo y usar el costo base
+        setImpuestoAplicado(null);
+        setMontoImpuesto(0);
+        setCostoSinImpuesto(0);
+        setCostoTotal(cotizacion.Costo);
       }
-    };
-    cargarDatos();
-  }, [cotizacion.Id]);
+      // Resetear cambios pendientes al cargar datos desde la BD
+      setCambiosPendientes(false);
+    } catch (error) {
+      console.error("Error al cargar ventanas", error);
+      Alert.alert("Error", "No se pudo cargar la información");
+    } finally {
+      setLoading(false);
+    }
+  }, [cotizacion.Id, cotizacion.Costo]);
+
+  // Recargar datos cada vez que la pantalla recibe el foco
+  useFocusEffect(
+    useCallback(() => {
+      cargarDatos();
+    }, [cargarDatos])
+  );
 
   const agregarImpuesto = () => {
     const costoBase = cotizacion.Costo;
@@ -41,6 +65,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
     setMontoImpuesto(impuesto);
     setCostoSinImpuesto(costoBase);
     setCostoTotal(nuevoTotal);
+    setCambiosPendientes(true);
   };
 
   const incluirImpuesto = () => {
@@ -52,20 +77,45 @@ const ExportarCotizacion = ({ route, navigation }) => {
     setMontoImpuesto(impuesto);
     setCostoSinImpuesto(costoBase);
     setCostoTotal(costoConImpuesto);
+    setCambiosPendientes(true);
   };
 
   const resetearImpuesto = () => {
+    // Si había impuestos aplicados, usar el costoSinImpuesto guardado
+    // Si no había impuestos, usar el costo original de la cotización
+    const costoBase = costoSinImpuesto > 0 ? costoSinImpuesto : cotizacion.Costo;
+
     setImpuestoAplicado(null);
     setMontoImpuesto(0);
     setCostoSinImpuesto(0);
-    setCostoTotal(cotizacion.Costo);
+    setCostoTotal(costoBase);
+    setCambiosPendientes(true);
+  };
+
+  const guardarCambios = async () => {
+    try {
+      const db = await getDBConnection();
+      await updateCotizacionImpuestos(
+        db,
+        cotizacion.Id,
+        impuestoAplicado,
+        montoImpuesto,
+        costoSinImpuesto,
+        costoTotal
+      );
+      setCambiosPendientes(false);
+      Alert.alert("Éxito", "Los cambios de impuestos se han guardado correctamente");
+    } catch (error) {
+      console.error("Error al guardar cambios:", error);
+      Alert.alert("Error", "No se pudieron guardar los cambios");
+    }
   };
 
   const generarHTML = () => {
     const ventanasHtml = ventanas.map(v => `
       <tr>
         <td>${v.Descripcion}</td>
-        <td>${(v.Base / 100).toFixed(2)} m x ${(v.Altura / 100).toFixed(2)} m</td>
+        <td>${(v.Base / 100).toFixed(2)} cm x ${(v.Altura / 100).toFixed(2)} cm</td>
         <td>${v.Vidrio}</td>
         <td>₡${Number(v.Costo).toLocaleString('es-CR')}</td>
       </tr>
@@ -97,6 +147,12 @@ const ExportarCotizacion = ({ route, navigation }) => {
               background-color: #f9f9f9;
               color: #333;
             }
+            .empresa-info {
+              text-align: right;
+              font-size: 14px;
+              color: #2c3e50;
+              font-weight: bold;
+            }
             h1, h2 {
               text-align: center;
               color: #2c3e50;
@@ -104,12 +160,27 @@ const ExportarCotizacion = ({ route, navigation }) => {
             .section {
               margin-bottom: 30px;
             }
+            .info-container {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 30px;
+            }
+            .info-cliente {
+              flex: 1;
+              padding-right: 20px;
+            }
+            .info-empresa {
+              flex: 1;
+              text-align: right;
+              padding-left: 20px;
+            }
             .label {
               font-weight: bold;
               margin-right: 8px;
             }
             .data {
-              margin-bottom: 6px;
+              margin-bottom: 4px;
+              line-height: 1.2;
             }
             table {
               width: 100%;
@@ -143,11 +214,18 @@ const ExportarCotizacion = ({ route, navigation }) => {
         </head>
         <body>
           <h1>Detalle de Cotización</h1>
+          <br><br>
 
-          <div class="section">
-            <div class="data"><span class="label">Cliente:</span> ${cotizacion.Nombre}</div>
-            <div class="data"><span class="label">Teléfono:</span> ${cotizacion.Telefono}</div>
-            <div class="data"><span class="label">Descripción:</span> ${cotizacion.Descripcion}</div>
+          <div class="info-container">
+            <div class="info-cliente">
+              <div class="data"><span class="label">Cliente:</span> ${cotizacion.Nombre}</div>
+              <div class="data"><span class="label">Teléfono:</span> ${cotizacion.Telefono}</div>
+              <div class="data"><span class="label">Descripción:</span> ${cotizacion.Descripcion}</div>
+            </div>
+            <div class="info-empresa">
+              <div class="data">Vidrios y Portones Araya</div>
+              <div class="data">Teléfono: (506) 8490-9790</div>
+            </div>
           </div>
 
           <h2>Detalle de Ventanas</h2>
@@ -203,7 +281,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
         </View>
       ) : (
         <>
-          <Text style={styles.title}>Vista Previa de Cotización</Text>
+          <Text style={styles.title}>Vista Previa de la Cotización</Text>
           <ScrollView style={styles.previewBox}>
             <Text style={styles.sectionTitle}>Cliente:</Text>
             <Text style={styles.info}>{cotizacion.Nombre}</Text>
@@ -283,6 +361,17 @@ const ExportarCotizacion = ({ route, navigation }) => {
                     labelStyle={styles.botonImpuestoLabel}
                   >
                     Quitar impuesto
+                  </Button>
+                )}
+                {cambiosPendientes && (
+                  <Button
+                    mode="outlined"
+                    compact
+                    onPress={guardarCambios}
+                    style={styles.botonGuardar}
+                    labelStyle={styles.botonGuardarLabel}
+                  >
+                    Guardar
                   </Button>
                 )}
               </View>
@@ -416,6 +505,16 @@ const styles = StyleSheet.create({
   botonImpuestoLabel: {
     fontSize: 11,
     textTransform: 'none',
+  },
+  botonGuardar: {
+    marginRight: 8,
+    marginBottom: 8,
+    borderColor: '#ff9800',
+  },
+  botonGuardarLabel: {
+    fontSize: 11,
+    textTransform: 'none',
+    color: '#f44336',
   },
 });
 

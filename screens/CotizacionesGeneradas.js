@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, FlatList, ActivityIndicator, Alert, Text } from 'react-native';
 //import { Button } from 'react-native-elements';
 
 import { Button } from 'react-native-paper';
@@ -105,11 +105,16 @@ const CotizacionesGeneradas = ({ navigation }) => {
             onExport={handleExport}
           />
         )}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No hay cotizaciones generadas aún</Text>
+          </View>
+        }
       />
       <Button  mode="contained"   style={styles.addButton}   onPress={() => navigation.navigate('Cotizaciones')}  >
-        Nueva Cotización  
+        Nueva Cotización
       </Button>
-        
+
     </View>
   );
 };
@@ -123,6 +128,17 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 100,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   addButton: {
     margin: 24,

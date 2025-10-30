@@ -385,7 +385,25 @@ export const getCostoVidrioById = async (db, id) => {
 export const getAllCotizaciones = async (db) => {
   return await withReconnection(async (validDb) => {
     const Cotizaciones = await validDb.getAllAsync(
-      'Select Coti.Id,Cli.Id as IdCliente,Coti.Descripcion,Cli.Nombre, Cli.Telefono,Sum(V.Costo) as Costo from Cotizaciones as Coti inner JOIN Clientes as Cli on Coti.IdCliente = Cli.Id Inner JOIN Ventanas as V ON Coti.Id = V.IdCotizacion GROUP by Coti.Id ORDER BY Coti.Id DESC'
+      `Select
+        Coti.Id,
+        Cli.Id as IdCliente,
+        Coti.Descripcion,
+        Cli.Nombre,
+        Cli.Telefono,
+        Sum(V.Costo) as CostoVentanas,
+        Coti.TipoImpuesto,
+        Coti.MontoImpuesto,
+        Coti.CostoSinImpuesto,
+        CASE
+          WHEN Coti.CostoTotal > 0 THEN Coti.CostoTotal
+          ELSE Sum(V.Costo)
+        END as Costo
+      from Cotizaciones as Coti
+      inner JOIN Clientes as Cli on Coti.IdCliente = Cli.Id
+      Inner JOIN Ventanas as V ON Coti.Id = V.IdCotizacion
+      GROUP by Coti.Id
+      ORDER BY Coti.Id DESC`
     );
     return Cotizaciones;
   }, db);
@@ -416,6 +434,37 @@ export const UpdateCotizacion = async (db, idCotizacion, Descripcion) => {
       throw error;
     }
   }, db, idCotizacion, Descripcion);
+};
+
+export const updateCotizacionImpuestos = async (db, idCotizacion, tipoImpuesto, montoImpuesto, costoSinImpuesto, costoTotal) => {
+  return await withReconnection(async (validDb) => {
+    try {
+      await validDb.execAsync('BEGIN TRANSACTION');
+      await validDb.runAsync(
+        `UPDATE Cotizaciones
+         SET TipoImpuesto = ?,
+             MontoImpuesto = ?,
+             CostoSinImpuesto = ?,
+             CostoTotal = ?
+         WHERE Id = ?`,
+        [tipoImpuesto, montoImpuesto || 0, costoSinImpuesto || 0, costoTotal || 0, idCotizacion]
+      );
+      await validDb.execAsync('COMMIT');
+    } catch (error) {
+      await validDb.execAsync('ROLLBACK');
+      throw error;
+    }
+  }, db, idCotizacion, tipoImpuesto, montoImpuesto, costoSinImpuesto, costoTotal);
+};
+
+export const getCotizacionById = async (db, idCotizacion) => {
+  return await withReconnection(async (validDb) => {
+    const cotizacion = await validDb.getFirstAsync(
+      `SELECT * FROM Cotizaciones WHERE Id = ?`,
+      [idCotizacion]
+    );
+    return cotizacion;
+  }, db, idCotizacion);
 };
 
 export const deleteVentanas = async (db, idVentana) => {
