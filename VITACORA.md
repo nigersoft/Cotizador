@@ -89,6 +89,14 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche - parte 8)
+**Mejora UI/UX**: Botón "Agregar Nueva Ventana" transparente con borde naranja
+- **Cambio**: Cambió de `contained` (relleno sólido) a `outlined` (transparente con borde)
+- **Mejora**: Consistente con EditarCotizacion, mantiene color naranja (#FF9800)
+- **Archivos modificados**:
+  - screens/CotizacionScreen.jsx
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 7)
 **Mejora UI/UX**: Agregar cliente con modal en ListaClientes
 - **Cambio**: Botón "Agregar Cliente" ahora abre modal en lugar de navegar a otra pantalla

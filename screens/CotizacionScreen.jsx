@@ -277,9 +277,9 @@ export default function CotizacionesScreen({ navigation }) {
 
         {/* Botón agregar ventana */}
         <Button
-          mode="contained"
+          mode="outlined"
           style={styles.addButton}
-          buttonColor="#FF9800"
+          textColor="#FF9800"
           onPress={() => setAgregarVisible(true)}
           icon="plus"
         >
@@ -510,11 +510,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 16,
     borderRadius: 12,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    borderColor: '#FF9800',
+    borderWidth: 2,
   },
   totalSection: {
     backgroundColor: '#FFFFFF',
