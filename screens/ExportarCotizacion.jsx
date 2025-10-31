@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
 import { getDBConnection, ExportarVentanasPorCotizacion } from '../ModuloDb/MDb';
-import { formatearColones, CalcularMontoImpuesto, GetInfoImpuestos, GuardarImpuesto } from '../services/ModuloFunciones';
+import { formatearColones, CalcularMontoImpuesto, GetInfoImpuestos, GuardarImpuesto, EliminarImpuesto } from '../services/ModuloFunciones';
 import { TIPOS_IMPUESTO } from '../constants/TiposImpuesto';
 
 const ExportarCotizacion = ({ route, navigation }) => {
@@ -109,6 +109,9 @@ const ExportarCotizacion = ({ route, navigation }) => {
                                : impuestoAplicado === 'incluido' ? TIPOS_IMPUESTO.INCLUIDO
                                : TIPOS_IMPUESTO.SIN_IMPUESTO;
         await GuardarImpuesto(cotizacion.Id, tipoImpuestoBD);
+      } else {
+        // Si no hay impuesto aplicado, eliminar el registro de BD
+        await EliminarImpuesto(cotizacion.Id);
       }
 
       setCambiosPendientes(false);

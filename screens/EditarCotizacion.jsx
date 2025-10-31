@@ -21,7 +21,8 @@ import {
   formatearColones,
   CalcularMontoImpuesto,
   GetInfoImpuestos,
-  GuardarImpuesto
+  GuardarImpuesto,
+  EliminarImpuesto
 } from '../services/ModuloFunciones';
 
 import { TIPOS_IMPUESTO } from '../constants/TiposImpuesto';
@@ -420,6 +421,9 @@ const EditarCotizacion = ({ route, navigation }) => {
                                : impuestoAplicado === 'incluido' ? TIPOS_IMPUESTO.INCLUIDO
                                : TIPOS_IMPUESTO.SIN_IMPUESTO;
         await GuardarImpuesto(cotizacion.Id, tipoImpuestoBD);
+      } else {
+        // Si no hay impuesto aplicado, eliminar el registro de BD
+        await EliminarImpuesto(cotizacion.Id);
       }
 
       // Limpiar estados después de guardar

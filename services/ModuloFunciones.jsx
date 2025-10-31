@@ -378,6 +378,33 @@ export const GuardarImpuesto = async (idCotizacion, tipoImpuesto) => {
 };
 
 /**
+ * Elimina el registro de impuesto asociado a una cotización
+ * @param {number} idCotizacion - ID de la cotización
+ * @returns {Promise<boolean>} true si se eliminó correctamente
+ */
+export const EliminarImpuesto = async (idCotizacion) => {
+  try {
+    // ✅ Validación: idCotizacion requerido
+    if (!idCotizacion) {
+      throw new Error('idCotizacion es requerido');
+    }
+
+    const db = await getDBConnection();
+
+    // Eliminar el registro de impuesto para esta cotización
+    await db.runAsync(
+      'DELETE FROM Impuestos WHERE IdCotizacion = ?',
+      [idCotizacion]
+    );
+
+    return true;
+  } catch (error) {
+    console.error('Error al eliminar impuesto:', error);
+    throw error;
+  }
+};
+
+/**
  * Obtiene el tipo de impuesto asociado a una cotización
  * @param {number} idCotizacion - ID de la cotización
  * @returns {Promise<string|null>} - Tipo de impuesto ('AGREGADO', 'INCLUIDO', 'SIN IMPUESTO') o null si no existe

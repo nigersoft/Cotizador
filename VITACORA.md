@@ -89,6 +89,19 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche - parte 3)
+**Bug Fix**: Impuesto no se elimina al quitar en ExportarCotizacion/EditarCotizacion
+- **Problema**: Al quitar el impuesto y guardar cambios, el cálculo local era correcto pero al regresar a CotizacionesGeneradas el impuesto seguía aplicado
+- **Causa**: La función `guardarCambios()` solo guardaba el impuesto si había uno aplicado, pero NO eliminaba el registro de BD cuando `impuestoAplicado` era null
+- **Solución**:
+  - Creada función `EliminarImpuesto()` en ModuloFunciones.jsx
+  - Modificado `guardarCambios()` en ExportarCotizacion y EditarCotizacion para eliminar el registro de BD cuando no hay impuesto
+- **Archivos modificados**:
+  - services/ModuloFunciones.jsx
+  - screens/ExportarCotizacion.jsx
+  - screens/EditarCotizacion.jsx
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 2)
 **Bug Fix**: Corregido eliminación inmediata de ventanas en EditarCotizacion
 - **Problema**: Al eliminar una ventana existente en EditarCotizacion, se eliminaba inmediatamente de BD sin esperar a "Guardar Cambios". Comportamiento inconsistente con agregar ventanas.
