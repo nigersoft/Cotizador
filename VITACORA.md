@@ -89,18 +89,42 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche)
+**Bug Fix**: Corregido guardado prematuro de ventanas en EditarCotizacion
+- **Problema**: Al agregar una nueva ventana en EditarCotizacion, se guardaba inmediatamente en BD sin esperar a "Guardar Cambios". Si el usuario se devolvía sin guardar, la ventana quedaba guardada de todos modos.
+- **Causa**: La función `agregarNuevaVentana()` llamaba a `insertVentana()` inmediatamente, insertando en BD al momento de agregar
+- **Solución**: Implementado sistema de ventanas pendientes con IDs temporales negativos
+  - Las ventanas nuevas se mantienen solo en estado local (`ventanasNuevas`)
+  - Se guardan en BD solo al presionar "Guardar Cambios"
+  - Si se cancela o se regresa, las ventanas nuevas se descartan
+  - Soporte para editar y eliminar ventanas nuevas antes de guardar
+- **Archivos modificados**:
+  - screens/EditarCotizacion.jsx
+- **Cambios técnicos**:
+  - Agregado estado `ventanasNuevas` y `contadorTemp` para IDs temporales
+  - Modificado `agregarNuevaVentana()` para usar estado local
+  - Modificado `handleDeleteVentana()` para distinguir ventanas existentes vs nuevas
+  - Modificado `confirmarEdicion()` para editar ventanas nuevas en estado local
+  - Modificado `guardarCambios()` para insertar ventanas nuevas en BD
+  - Modificado `calcularCostoVentanas()` para incluir ventanas nuevas
+
 ### 2025-10-31 (tarde)
-**Bug Fix**: Corregido cálculo de impuesto AGREGADO en CotizacionesGeneradas
-- **Problema**: Al agregar impuesto tipo AGREGADO a una cotización, el listado mostraba solo el 13% del impuesto en lugar del costo total + 13%
-- **Causa**: Error en `CalcularCostoConImpuesto()` que multiplicaba por `PORCENTAJE_IMPUESTO` (0.13) en lugar de `(1 + PORCENTAJE_IMPUESTO)` (1.13)
-- **Solución**: Corregido en `services/ModuloFunciones.jsx:429`
+**Commit**: `8b43979` - "fix: Corregir cálculo de impuesto AGREGADO y mejorar validación de clientes"
+- **Bug Fix - Sistema de Impuestos**:
+  - Problema: Al agregar impuesto tipo AGREGADO a una cotización, el listado mostraba solo el 13% del impuesto en lugar del costo total + 13%
+  - Causa: Error en `CalcularCostoConImpuesto()` que multiplicaba por `PORCENTAJE_IMPUESTO` (0.13) en lugar de `(1 + PORCENTAJE_IMPUESTO)` (1.13)
+  - Solución: Corregido en `services/ModuloFunciones.jsx:429`
+  - Actualizado `getAllCotizaciones()` en `ModuloDb/MDb.js` para aplicar impuestos correctamente
+- **Mejora - Validación de Clientes**:
+  - Actualizado `NuevoClienteScreen.jsx`
+  - Solo Nombre y Teléfono son campos obligatorios
+  - Apellidos y Email son opcionales (se guardan como null si vacíos)
+  - Labels sin marcadores visuales para invitar a completar todos los campos
 - **Archivos modificados**:
   - services/ModuloFunciones.jsx
-- **Testing realizado**:
-  - Verificado cálculo para AGREGADO: costo × 1.13 ✅
-  - Verificado cálculo para INCLUIDO: costo sin cambio ✅
-  - Verificado cálculo para SIN IMPUESTO: costo sin cambio ✅
-  - Verificado cambio entre tipos de impuesto ✅
+  - ModuloDb/MDb.js
+  - screens/NuevoClienteScreen.jsx
+  - VITACORA.md
 
 ### 2025-10-31 (mañana)
 **Commit**: `1d36514` - "docs: Agregar VITACORA.md y actualizar CLAUDE.md"

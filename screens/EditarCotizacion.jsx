@@ -45,6 +45,8 @@ const EditarCotizacion = ({ route, navigation }) => {
   const [ventanas, setVentanas] = useState([]);
   const [idCliente, setIdCliente] = useState();
   const [Descripcion, setDescripcion] = useState('');
+  const [ventanasNuevas, setVentanasNuevas] = useState([]); // Ventanas pendientes de guardar
+  const [contadorTemp, setContadorTemp] = useState(-1); // IDs temporales negativos
 
   // ====== Estado para nueva ventana ======
   const [nuevaDescripcion, setNuevaDescripcion] = useState('');
@@ -80,10 +82,15 @@ const EditarCotizacion = ({ route, navigation }) => {
     return isNaN(numero) ? null : numero;
   };
 
-  // === Calcular costo total de ventanas ===
+  // === Calcular costo total de ventanas (existentes + nuevas) ===
   const calcularCostoVentanas = () => {
-    return ventanas.reduce((sum, v) => sum + (v.Costo || 0), 0);
+    const costoExistentes = ventanas.reduce((sum, v) => sum + (v.Costo || 0), 0);
+    const costoNuevas = ventanasNuevas.reduce((sum, v) => sum + (v.Costo || 0), 0);
+    return costoExistentes + costoNuevas;
   };
+
+  // === Obtener todas las ventanas (existentes + nuevas) para mostrar ===
+  const todasLasVentanas = [...ventanas, ...ventanasNuevas];
 
   // === Funciones de impuestos ===
   const agregarImpuesto = () => {
@@ -115,9 +122,9 @@ const EditarCotizacion = ({ route, navigation }) => {
     setCostoTotal(0);
   };
 
-  // === Recalcular impuesto cuando cambien las ventanas ===
+  // === Recalcular impuesto cuando cambien las ventanas (existentes o nuevas) ===
   useEffect(() => {
-    if (impuestoAplicado && ventanas.length > 0) {
+    if (impuestoAplicado && (ventanas.length > 0 || ventanasNuevas.length > 0)) {
       if (impuestoAplicado === 'agregado') {
         const costoBase = calcularCostoVentanas();
         const impuesto = costoBase * 0.13;
@@ -134,7 +141,7 @@ const EditarCotizacion = ({ route, navigation }) => {
         setCostoTotal(costoConImpuesto);
       }
     }
-  }, [ventanas, impuestoAplicado]);
+  }, [ventanas, ventanasNuevas, impuestoAplicado]);
 
   // === Inicialización ===
   useEffect(() => {
@@ -143,6 +150,8 @@ const EditarCotizacion = ({ route, navigation }) => {
         const database = await getDBConnection();
         setDb(database);
         setVentanas([]);
+        setVentanasNuevas([]); // Limpiar ventanas nuevas al cargar
+        setContadorTemp(-1); // Resetear contador
         await cargarDatos(database);
         setIdCliente(cotizacion.IdCliente);
         setDescripcion(cotizacion.Descripcion ?? '');
@@ -217,7 +226,7 @@ const EditarCotizacion = ({ route, navigation }) => {
     return () => { cancelled = true; };
   }, [eBase, eAltura, autoCosto, editVisible, editItem]);
 
-  // ====== Confirmar edición: guarda en SQL y recarga ======
+  // ====== Confirmar edición: distingue entre ventanas existentes y nuevas ======
   const confirmarEdicion = async () => {
     if (!editItem) return;
 
@@ -251,17 +260,24 @@ const EditarCotizacion = ({ route, navigation }) => {
     };
 
     try {
-      if (!db) throw new Error('BD no inicializada');
-      await actualizarVentana(updated); // <-- persistir
-
-      // Cerrar el teclado después de actualizar
-      Keyboard.dismiss();
-
-      setEditVisible(false);
-      setEditItem(null);
-      // 🔄 Releer SIEMPRE desde SQL para sincronía total
-      await cargarDatos(db);
-      Alert.alert('✅ Éxito', 'Ventana actualizada correctamente');
+      // Si es una ventana nueva (ID negativo), actualizar en estado local
+      if (editItem.Id < 0) {
+        setVentanasNuevas(prev => prev.map(v => v.Id === editItem.Id ? updated : v));
+        Keyboard.dismiss();
+        setEditVisible(false);
+        setEditItem(null);
+        Alert.alert('✅ Éxito', 'Ventana actualizada correctamente');
+      } else {
+        // Si es una ventana existente, actualizar en BD
+        if (!db) throw new Error('BD no inicializada');
+        await actualizarVentana(updated);
+        Keyboard.dismiss();
+        setEditVisible(false);
+        setEditItem(null);
+        // Releer desde SQL
+        await cargarDatos(db);
+        Alert.alert('✅ Éxito', 'Ventana actualizada correctamente');
+      }
     } catch (err) {
       console.error('Error al actualizar ventana:', err);
       Alert.alert('❌ Error', 'No se pudo actualizar la ventana.');
@@ -274,9 +290,12 @@ const EditarCotizacion = ({ route, navigation }) => {
     setEditItem(null);
   };
 
-  // ===== Eliminar: borra en SQL y recarga =====
+  // ===== Eliminar: distingue entre ventanas existentes y nuevas =====
   const handleDeleteVentana = (id) => {
-    const ventanaSeleccionada = ventanas.find(v => v.Id === id);
+    // Buscar en ventanas existentes o nuevas
+    const ventanaExistente = ventanas.find(v => v.Id === id);
+    const ventanaNueva = ventanasNuevas.find(v => v.Id === id);
+    const ventanaSeleccionada = ventanaExistente || ventanaNueva;
 
     Alert.alert(
       '¿Eliminar ventana?',
@@ -288,11 +307,18 @@ const EditarCotizacion = ({ route, navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (!db) throw new Error('BD no inicializada');
-              await deleteVentanas(db, id);   // <-- pasar db
-              // 🔄 Releer desde SQL para sincronía completa
-              await cargarDatos(db);
-              Alert.alert('✅ Eliminado', 'La ventana ha sido eliminada.');
+              // Si es una ventana nueva (ID negativo), solo quitarla del estado
+              if (id < 0) {
+                setVentanasNuevas(prev => prev.filter(v => v.Id !== id));
+                Alert.alert('✅ Eliminado', 'La ventana ha sido eliminada.');
+              } else {
+                // Si es una ventana existente, eliminar de BD
+                if (!db) throw new Error('BD no inicializada');
+                await deleteVentanas(db, id);
+                // Releer desde SQL
+                await cargarDatos(db);
+                Alert.alert('✅ Eliminado', 'La ventana ha sido eliminada.');
+              }
             } catch (error) {
               console.error('Error al eliminar la ventana:', error);
               Alert.alert('❌ Error', 'No se pudo eliminar la ventana.');
@@ -304,7 +330,7 @@ const EditarCotizacion = ({ route, navigation }) => {
     );
   };
 
-  // ===== Agregar nueva ventana: inserta en SQL y recarga =====
+  // ===== Agregar nueva ventana: agrega al estado local (NO a BD hasta Guardar) =====
   const agregarNuevaVentana = async () => {
     // Normalizar Base y Altura para aceptar "." y ","
     const baseNormalizada = normalizarNumero(nuevaBase);
@@ -321,12 +347,12 @@ const EditarCotizacion = ({ route, navigation }) => {
     }
 
     try {
-      if (!db) throw new Error('BD no inicializada');
-
       const costoBase = await CalcularCostos(baseNormalizada, alturaNormalizada, idVidrio);
       const precio = costoBase * 1.30;
 
+      // Crear ventana con ID temporal negativo
       const nuevaVentana = {
+        Id: contadorTemp, // ID temporal negativo
         IdCotizacion: cotizacion.Id,
         IdVidrio: idVidrio,
         Descripcion: nuevaDescripcion.trim(),
@@ -335,7 +361,9 @@ const EditarCotizacion = ({ route, navigation }) => {
         Altura: alturaNormalizada,
       };
 
-      await insertVentana(db, nuevaVentana);
+      // Agregar al estado local (no a BD)
+      setVentanasNuevas(prev => [...prev, nuevaVentana]);
+      setContadorTemp(prev => prev - 1); // Decrementar para el próximo ID temporal
 
       // Cerrar el teclado después de agregar
       Keyboard.dismiss();
@@ -349,9 +377,7 @@ const EditarCotizacion = ({ route, navigation }) => {
       setNuevaAltura('');
       setIdVidrio(null);
 
-      // Recargar ventanas desde SQL
-      await cargarDatos(db);
-      Alert.alert('✅ Éxito', 'Ventana agregada correctamente');
+      Alert.alert('✅ Éxito', 'Ventana agregada. Recuerda presionar "Guardar Cambios" para confirmar.');
     } catch (err) {
       console.error('Error al agregar ventana:', err);
       Alert.alert('❌ Error', 'No se pudo agregar la ventana.');
@@ -365,6 +391,19 @@ const EditarCotizacion = ({ route, navigation }) => {
       // Actualizar descripción
       await UpdateCotizacion(db, cotizacion.Id, Descripcion);
 
+      // Insertar ventanas nuevas en BD
+      for (const ventana of ventanasNuevas) {
+        const ventanaParaInsertar = {
+          IdCotizacion: ventana.IdCotizacion,
+          IdVidrio: ventana.IdVidrio,
+          Descripcion: ventana.Descripcion,
+          Costo: ventana.Costo,
+          Base: ventana.Base,
+          Altura: ventana.Altura,
+        };
+        await insertVentana(db, ventanaParaInsertar);
+      }
+
       // Guardar información de impuestos si hay un tipo aplicado
       if (impuestoAplicado) {
         // Mapear el tipo de impuesto al formato esperado en BD
@@ -373,6 +412,9 @@ const EditarCotizacion = ({ route, navigation }) => {
                                : TIPOS_IMPUESTO.SIN_IMPUESTO;
         await GuardarImpuesto(cotizacion.Id, tipoImpuestoBD);
       }
+
+      // Limpiar ventanas nuevas después de guardar
+      setVentanasNuevas([]);
 
       Alert.alert('✅ Guardado', 'Cambios de la cotización actualizados');
       navigation.navigate('CotizacionesGen');
@@ -413,7 +455,7 @@ const EditarCotizacion = ({ route, navigation }) => {
         <Text style={styles.sectionTitle}>Ventanas:</Text>
 
         <FlatList
-          data={ventanas}
+          data={todasLasVentanas}
           keyExtractor={(item) => item.Id.toString()}
           renderItem={({ item }) => (
             <VentanaItem
