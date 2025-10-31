@@ -15,7 +15,7 @@ const ClientesDropdown = ({ onChange, initialValue = null }) => {
       const listaClientes = await getAllClientes(cnx);
 
       const dropdownData = listaClientes.map(client => ({
-        label: `${client.Nombre} ${client.Apellido}`,
+        label: client.Apellido ? `${client.Nombre} ${client.Apellido}` : client.Nombre,
         value: client.Id,
       }));
 
