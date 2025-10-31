@@ -12,12 +12,19 @@ import {
   getVentanasPorCotizacion,
   deleteVentanas,
   UpdateCotizacion,
-  insertVentana,
-  updateCotizacionImpuestos,
-  getCotizacionById
+  insertVentana
 } from '../ModuloDb/MDb';
 
-import { CalcularCostos, actualizarVentana, formatearColones } from '../services/ModuloFunciones';
+import {
+  CalcularCostos,
+  actualizarVentana,
+  formatearColones,
+  CalcularMontoImpuesto,
+  GetInfoImpuestos,
+  GuardarImpuesto
+} from '../services/ModuloFunciones';
+
+import { TIPOS_IMPUESTO } from '../constants/TiposImpuesto';
 
 import VentanaItem from '../components/VentanaItem';
 import ClientesDropdown from '../components/ClientesDropdown';
@@ -152,22 +159,26 @@ const EditarCotizacion = ({ route, navigation }) => {
     const v = await getVentanasPorCotizacion(database, cotizacion.Id);
     setVentanas(v);
 
-    // Cargar cotización actualizada desde la BD para obtener datos de impuesto más recientes
-    const cotizacionActualizada = await getCotizacionById(database, cotizacion.Id);
+    // Cargar información de impuestos usando la nueva función
+    try {
+      const infoImpuestos = await GetInfoImpuestos(cotizacion.Id);
+      const costoBase = infoImpuestos.costoTotal;
+      const tipoImpuesto = infoImpuestos.tipoImpuesto;
 
-    if (cotizacionActualizada) {
-      setIdCliente(cotizacionActualizada.IdCliente);
-      setDescripcion(cotizacionActualizada.Descripcion ?? '');
+      if (tipoImpuesto) {
+        // Calcular monto e impuesto usando la nueva función
+        const { monto, impuesto } = CalcularMontoImpuesto(costoBase, tipoImpuesto);
 
-      // Cargar datos de impuesto desde la BD
-      if (cotizacionActualizada.TipoImpuesto) {
-        setImpuestoAplicado(cotizacionActualizada.TipoImpuesto);
-        setMontoImpuesto(cotizacionActualizada.MontoImpuesto || 0);
-        setCostoSinImpuesto(cotizacionActualizada.CostoSinImpuesto || 0);
-        setCostoTotal(cotizacionActualizada.CostoTotal || 0);
+        setImpuestoAplicado(tipoImpuesto === TIPOS_IMPUESTO.AGREGADO ? 'agregado' : tipoImpuesto === TIPOS_IMPUESTO.INCLUIDO ? 'incluido' : null);
+        setMontoImpuesto(impuesto);
+        setCostoSinImpuesto(tipoImpuesto === TIPOS_IMPUESTO.AGREGADO ? costoBase : costoBase / 1.13);
+        setCostoTotal(monto);
       } else {
         resetearImpuesto();
       }
+    } catch (error) {
+      console.error('Error cargando información de impuestos:', error);
+      resetearImpuesto();
     }
   }, [cotizacion.Id]);
 
@@ -354,15 +365,14 @@ const EditarCotizacion = ({ route, navigation }) => {
       // Actualizar descripción
       await UpdateCotizacion(db, cotizacion.Id, Descripcion);
 
-      // Actualizar información de impuestos
-      await updateCotizacionImpuestos(
-        db,
-        cotizacion.Id,
-        impuestoAplicado,
-        montoImpuesto,
-        costoSinImpuesto,
-        impuestoAplicado ? costoTotal : calcularCostoVentanas()
-      );
+      // Guardar información de impuestos si hay un tipo aplicado
+      if (impuestoAplicado) {
+        // Mapear el tipo de impuesto al formato esperado en BD
+        const tipoImpuestoBD = impuestoAplicado === 'agregado' ? TIPOS_IMPUESTO.AGREGADO
+                               : impuestoAplicado === 'incluido' ? TIPOS_IMPUESTO.INCLUIDO
+                               : TIPOS_IMPUESTO.SIN_IMPUESTO;
+        await GuardarImpuesto(cotizacion.Id, tipoImpuestoBD);
+      }
 
       Alert.alert('✅ Guardado', 'Cambios de la cotización actualizados');
       navigation.navigate('CotizacionesGen');
@@ -428,7 +438,7 @@ const EditarCotizacion = ({ route, navigation }) => {
 
         {/* Sección de impuestos */}
         <View style={styles.impuestoSection}>
-          {impuestoAplicado && (
+          {impuestoAplicado && montoImpuesto > 0 && (
             <View style={styles.desglose}>
               <View style={styles.impuestoRow}>
                 <Text style={styles.impuestoLabel}>Subtotal:</Text>

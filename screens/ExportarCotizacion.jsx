@@ -5,8 +5,9 @@ import { Button, Text } from 'react-native-paper';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
-import { getDBConnection, ExportarVentanasPorCotizacion, updateCotizacionImpuestos, getCotizacionById } from '../ModuloDb/MDb';
-import { formatearColones } from '../services/ModuloFunciones';
+import { getDBConnection, ExportarVentanasPorCotizacion } from '../ModuloDb/MDb';
+import { formatearColones, CalcularMontoImpuesto, GetInfoImpuestos, GuardarImpuesto } from '../services/ModuloFunciones';
+import { TIPOS_IMPUESTO } from '../constants/TiposImpuesto';
 
 const ExportarCotizacion = ({ route, navigation }) => {
   const { cotizacion } = route.params;
@@ -25,20 +26,27 @@ const ExportarCotizacion = ({ route, navigation }) => {
       const datosVentanas = await ExportarVentanasPorCotizacion(db, cotizacion.Id);
       setVentanas(datosVentanas);
 
-      // Cargar estado del impuesto desde la BD
-      const cotizacionActualizada = await getCotizacionById(db, cotizacion.Id);
-      if (cotizacionActualizada && cotizacionActualizada.TipoImpuesto) {
-        setImpuestoAplicado(cotizacionActualizada.TipoImpuesto);
-        setMontoImpuesto(cotizacionActualizada.MontoImpuesto || 0);
-        setCostoSinImpuesto(cotizacionActualizada.CostoSinImpuesto || 0);
-        setCostoTotal(cotizacionActualizada.CostoTotal || cotizacion.Costo);
+      // Cargar información de impuestos usando la nueva función
+      const infoImpuestos = await GetInfoImpuestos(cotizacion.Id);
+      const costoBase = infoImpuestos.costoTotal;
+      const tipoImpuesto = infoImpuestos.tipoImpuesto;
+
+      if (tipoImpuesto) {
+        // Calcular monto e impuesto usando la nueva función
+        const { monto, impuesto } = CalcularMontoImpuesto(costoBase, tipoImpuesto);
+
+        setImpuestoAplicado(tipoImpuesto === TIPOS_IMPUESTO.AGREGADO ? 'agregado' : tipoImpuesto === TIPOS_IMPUESTO.INCLUIDO ? 'incluido' : null);
+        setMontoImpuesto(impuesto);
+        setCostoSinImpuesto(tipoImpuesto === TIPOS_IMPUESTO.AGREGADO ? costoBase : costoBase / 1.13);
+        setCostoTotal(monto);
       } else {
-        // Si no hay impuesto guardado, resetear todo y usar el costo base
+        // Si no hay impuesto guardado, usar solo el costo base
         setImpuestoAplicado(null);
         setMontoImpuesto(0);
         setCostoSinImpuesto(0);
-        setCostoTotal(cotizacion.Costo);
+        setCostoTotal(costoBase);
       }
+
       // Resetear cambios pendientes al cargar datos desde la BD
       setCambiosPendientes(false);
     } catch (error) {
@@ -47,7 +55,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [cotizacion.Id, cotizacion.Costo]);
+  }, [cotizacion.Id]);
 
   // Recargar datos cada vez que la pantalla recibe el foco
   useFocusEffect(
@@ -57,33 +65,33 @@ const ExportarCotizacion = ({ route, navigation }) => {
   );
 
   const agregarImpuesto = () => {
-    const costoBase = cotizacion.Costo;
-    const impuesto = costoBase * 0.13;
-    const nuevoTotal = costoBase + impuesto;
+    // Usar el costoTotal actual del estado, que es el costo sin impuestos
+    const costoBase = costoTotal;
+    const { monto, impuesto } = CalcularMontoImpuesto(costoBase, 'AGREGADO');
 
     setImpuestoAplicado('agregado');
     setMontoImpuesto(impuesto);
     setCostoSinImpuesto(costoBase);
-    setCostoTotal(nuevoTotal);
+    setCostoTotal(monto);
     setCambiosPendientes(true);
   };
 
   const incluirImpuesto = () => {
-    const costoConImpuesto = cotizacion.Costo;
-    const costoBase = costoConImpuesto / 1.13;
-    const impuesto = costoBase * 0.13;
+    // Usar el costoTotal actual del estado, que es el costo sin impuestos
+    const costoConImpuesto = costoTotal;
+    const { monto, impuesto } = CalcularMontoImpuesto(costoConImpuesto, 'INCLUIDO');
 
     setImpuestoAplicado('incluido');
     setMontoImpuesto(impuesto);
-    setCostoSinImpuesto(costoBase);
-    setCostoTotal(costoConImpuesto);
+    setCostoSinImpuesto(costoConImpuesto / 1.13);
+    setCostoTotal(monto);
     setCambiosPendientes(true);
   };
 
   const resetearImpuesto = () => {
     // Si había impuestos aplicados, usar el costoSinImpuesto guardado
-    // Si no había impuestos, usar el costo original de la cotización
-    const costoBase = costoSinImpuesto > 0 ? costoSinImpuesto : cotizacion.Costo;
+    // Si no había impuestos, usar el costo total actual
+    const costoBase = costoSinImpuesto > 0 ? costoSinImpuesto : costoTotal;
 
     setImpuestoAplicado(null);
     setMontoImpuesto(0);
@@ -94,15 +102,15 @@ const ExportarCotizacion = ({ route, navigation }) => {
 
   const guardarCambios = async () => {
     try {
-      const db = await getDBConnection();
-      await updateCotizacionImpuestos(
-        db,
-        cotizacion.Id,
-        impuestoAplicado,
-        montoImpuesto,
-        costoSinImpuesto,
-        costoTotal
-      );
+      // Guardar información de impuestos si hay un tipo aplicado
+      if (impuestoAplicado) {
+        // Mapear el tipo de impuesto al formato esperado en BD
+        const tipoImpuestoBD = impuestoAplicado === 'agregado' ? TIPOS_IMPUESTO.AGREGADO
+                               : impuestoAplicado === 'incluido' ? TIPOS_IMPUESTO.INCLUIDO
+                               : TIPOS_IMPUESTO.SIN_IMPUESTO;
+        await GuardarImpuesto(cotizacion.Id, tipoImpuestoBD);
+      }
+
       setCambiosPendientes(false);
       Alert.alert("Éxito", "Los cambios de impuestos se han guardado correctamente");
     } catch (error) {
@@ -121,15 +129,10 @@ const ExportarCotizacion = ({ route, navigation }) => {
       </tr>
     `).join('');
 
-    // Generar el desglose de impuestos si está aplicado
+    // Generar el desglose de impuestos si está aplicado y es mayor a 0
     let desgloseCostos = '';
-    if (impuestoAplicado) {
-      if (impuestoAplicado === 'agregado') {
-        desgloseCostos = `
-          <div class="data"><span class="label">Subtotal:</span> ${formatearColones(costoSinImpuesto)}</div>
-          <div class="data"><span class="label">Impuesto de ventas (13%):</span> ${formatearColones(montoImpuesto)}</div>
-        `;
-      } else if (impuestoAplicado === 'incluido') {
+    if (impuestoAplicado && montoImpuesto > 0) {
+      if (impuestoAplicado === 'agregado' || impuestoAplicado === 'incluido') {
         desgloseCostos = `
           <div class="data"><span class="label">Subtotal:</span> ${formatearColones(costoSinImpuesto)}</div>
           <div class="data"><span class="label">Impuesto de ventas (13%):</span> ${formatearColones(montoImpuesto)}</div>
@@ -310,8 +313,8 @@ const ExportarCotizacion = ({ route, navigation }) => {
               </View>
             ))}
 
-            {/* Sección de impuestos */}
-            {impuestoAplicado && (
+            {/* Sección de impuestos - Solo mostrar si hay impuesto aplicado y es mayor a 0 */}
+            {impuestoAplicado && montoImpuesto > 0 && (
               <View style={styles.impuestoSection}>
                 <View style={styles.impuestoRow}>
                   <Text style={styles.impuestoLabel}>Subtotal:</Text>

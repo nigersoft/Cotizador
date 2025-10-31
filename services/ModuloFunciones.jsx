@@ -1,5 +1,6 @@
 import { getDBConnection, getAllMateriales, getCostoVidrioById, getPorcentajeGanancia } from '../ModuloDb/MDb.js';
 import { Alert } from 'react-native';
+import { TIPOS_IMPUESTO, PORCENTAJE_IMPUESTO, esTipoImpuestoValido } from '../constants/TiposImpuesto.js';
 
 export const CalcularCostos = async(B,A,IdVid) =>{
 
@@ -225,6 +226,153 @@ export const actualizarVentana = async (ventana) => {
     return result.changes;
   } catch (error) {
     console.error('Error al actualizar la ventana de la cotización:', error);
+    throw error;
+  }
+};
+
+///////////////////////// Cálculo de Impuestos //////////////////////////////////////
+
+/**
+ * Calcula el monto de impuesto y el total según el tipo de impuesto
+ * @param {number} costo - Costo base
+ * @param {string} tipoImpuesto - Tipo de impuesto (usar constantes TIPOS_IMPUESTO)
+ * @returns {Object} { monto, impuesto } donde:
+ *   - monto: el monto total con impuesto aplicado
+ *   - impuesto: el valor del impuesto calculado
+ */
+export const CalcularMontoImpuesto = (costo, tipoImpuesto) => {
+  const costoNumerico = Number(costo);
+
+  if (isNaN(costoNumerico) || costoNumerico < 0) {
+    console.warn('Costo inválido para calcular impuesto:', costo);
+    return { monto: 0, impuesto: 0 };
+  }
+
+  switch (tipoImpuesto) {
+    case TIPOS_IMPUESTO.AGREGADO:
+      // Impuesto se agrega al costo
+      const impuestoAgregado = costoNumerico * PORCENTAJE_IMPUESTO;
+      const montoAgregado = costoNumerico + impuestoAgregado;
+      return { monto: montoAgregado, impuesto: impuestoAgregado };
+
+    case TIPOS_IMPUESTO.INCLUIDO:
+      // Impuesto ya está incluido en el costo
+      // Costo sin impuesto = Costo / 1.13
+      // Impuesto = Costo - (Costo / 1.13)
+      const divisor = 1 + PORCENTAJE_IMPUESTO;
+      const costoSinImpuesto = costoNumerico / divisor;
+      const impuestoIncluido = costoNumerico - costoSinImpuesto;
+      return { monto: costoNumerico, impuesto: impuestoIncluido };
+
+    case TIPOS_IMPUESTO.SIN_IMPUESTO:
+      // Sin impuesto
+      return { monto: costoNumerico, impuesto: 0 };
+
+    default:
+      // Si no hay tipo de impuesto definido, retornar el costo sin modificar
+      console.warn('Tipo de impuesto no reconocido:', tipoImpuesto);
+      return { monto: costoNumerico, impuesto: 0 };
+  }
+};
+
+///////////////////////// Gestión de Impuestos en BD //////////////////////////////////////
+
+/**
+ * Obtiene información de impuestos de una cotización
+ * @param {number} idCotizacion - ID de la cotización
+ * @returns {Object} { costoTotal, tipoImpuesto } donde:
+ *   - costoTotal: suma de costos de todas las ventanas
+ *   - tipoImpuesto: descripción del tipo de impuesto (AGREGADO, INCLUIDO, SIN IMPUESTO, o null)
+ */
+export const GetInfoImpuestos = async (idCotizacion) => {
+  try {
+    const db = await getDBConnection();
+
+    // Calcular costo total como suma de ventanas
+    const costoResult = await db.getFirstAsync(
+      `SELECT SUM(Costo) as CostoTotal FROM Ventanas WHERE IdCotizacion = ?`,
+      [idCotizacion]
+    );
+    const costoTotal = costoResult?.CostoTotal || 0;
+
+    // Obtener tipo de impuesto mediante joins
+    const impuestoResult = await db.getFirstAsync(
+      `SELECT ti.Descripcion as TipoImpuesto
+       FROM Impuestos i
+       INNER JOIN TipoImpuestos ti ON i.IdTipoImpuesto = ti.Id
+       WHERE i.IdCotizacion = ?`,
+      [idCotizacion]
+    );
+
+    return {
+      costoTotal,
+      tipoImpuesto: impuestoResult?.TipoImpuesto || null
+    };
+  } catch (error) {
+    console.error('Error al obtener info de impuestos:', error);
+    throw error;
+  }
+};
+
+/**
+ * Guarda o actualiza el tipo de impuesto para una cotización
+ * @param {number} idCotizacion - ID de la cotización
+ * @param {string} tipoImpuesto - Tipo de impuesto (usar constantes TIPOS_IMPUESTO)
+ * @returns {boolean} true si se guardó correctamente
+ */
+export const GuardarImpuesto = async (idCotizacion, tipoImpuesto) => {
+  try {
+    // ✅ Validación 1: Parámetros requeridos
+    if (!idCotizacion || !tipoImpuesto) {
+      throw new Error('idCotizacion y tipoImpuesto son requeridos');
+    }
+
+    // ✅ Validación 2: Tipo de impuesto válido
+    if (!esTipoImpuestoValido(tipoImpuesto)) {
+      throw new Error(`Tipo de impuesto inválido: "${tipoImpuesto}". Debe ser AGREGADO, INCLUIDO o SIN IMPUESTO`);
+    }
+
+    const db = await getDBConnection();
+    await db.execAsync('BEGIN TRANSACTION');
+
+    // Buscar el Id del tipo de impuesto
+    const tipoResult = await db.getFirstAsync(
+      'SELECT Id FROM TipoImpuestos WHERE Descripcion = ?',
+      [tipoImpuesto]
+    );
+
+    if (!tipoResult) {
+      throw new Error(`Tipo de impuesto "${tipoImpuesto}" no encontrado en la base de datos`);
+    }
+
+    const idTipoImpuesto = tipoResult.Id;
+
+    // Verificar si ya existe un registro para esta cotización
+    const existente = await db.getFirstAsync(
+      'SELECT Id FROM Impuestos WHERE IdCotizacion = ?',
+      [idCotizacion]
+    );
+
+    if (existente) {
+      // Actualizar registro existente
+      await db.runAsync(
+        'UPDATE Impuestos SET IdTipoImpuesto = ? WHERE IdCotizacion = ?',
+        [idTipoImpuesto, idCotizacion]
+      );
+    } else {
+      // Insertar nuevo registro
+      await db.runAsync(
+        'INSERT INTO Impuestos (IdCotizacion, IdTipoImpuesto) VALUES (?, ?)',
+        [idCotizacion, idTipoImpuesto]
+      );
+    }
+
+    await db.execAsync('COMMIT');
+    return true;
+  } catch (error) {
+    const db = await getDBConnection();
+    await db.execAsync('ROLLBACK');
+    console.error('Error al guardar impuesto:', error);
     throw error;
   }
 };
