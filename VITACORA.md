@@ -89,6 +89,19 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche - parte 5)
+**Mejora UI/UX**: Refactorizado CotizacionScreen similar a EditarCotizacion
+- **Cambio**: Movido formulario de ventanas a modal, solo selector de cliente en pantalla principal
+- **Mejoras**:
+  - Pantalla principal más limpia: solo cliente, lista de ventanas y botones
+  - Botón "Agregar Nueva Ventana" abre modal con formulario
+  - UI consistente con EditarCotizacion
+  - ScrollView en lugar de FlatList para mejor UX
+  - Mantiene funcionalidad de edición inline y guardado
+- **Archivos modificados**:
+  - screens/CotizacionScreen.jsx
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 4)
 **Bug Fix**: Al quitar impuesto INCLUIDO, restaba incorrectamente en ExportarCotizacion
 - **Problema**: Con impuesto INCLUIDO (ej: total ₡11,300 incluye 13%), al quitar el impuesto mostraba ₡10,000 en lugar de ₡11,300
