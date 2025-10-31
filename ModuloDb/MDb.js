@@ -4,6 +4,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as SQLite from 'expo-sqlite';
 import { Asset } from 'expo-asset';
+import { CalcularCostoConImpuesto, ObtenerTipoImpuestoCotizacion } from '../services/ModuloFunciones.jsx';
 
 // Singleton para manejar la conexión de la base de datos
 class DatabaseManager {
@@ -384,6 +385,7 @@ export const getCostoVidrioById = async (db, id) => {
 
 export const getAllCotizaciones = async (db) => {
   return await withReconnection(async (validDb) => {
+    // Obtener cotizaciones con costo base (suma de ventanas)
     const Cotizaciones = await validDb.getAllAsync(
       `SELECT
         Coti.Id,
@@ -391,14 +393,31 @@ export const getAllCotizaciones = async (db) => {
         Coti.Descripcion,
         Cli.Nombre,
         Cli.Telefono,
-        SUM(V.Costo) as Costo
+        SUM(V.Costo) as CostoBase
       FROM Cotizaciones as Coti
       INNER JOIN Clientes as Cli ON Coti.IdCliente = Cli.Id
       INNER JOIN Ventanas as V ON Coti.Id = V.IdCotizacion
       GROUP BY Coti.Id
       ORDER BY Coti.Id DESC`
     );
-    return Cotizaciones;
+
+    // Para cada cotización, obtener el tipo de impuesto y calcular el costo final
+    const cotizacionesConImpuesto = await Promise.all(
+      Cotizaciones.map(async (cotizacion) => {
+        // Usar la función de ModuloFunciones para obtener el tipo de impuesto
+        const tipoImpuesto = await ObtenerTipoImpuestoCotizacion(cotizacion.Id);
+
+        // Usar la función de ModuloFunciones para calcular el costo con impuesto
+        const costoFinal = CalcularCostoConImpuesto(cotizacion.CostoBase, tipoImpuesto);
+
+        return {
+          ...cotizacion,
+          Costo: costoFinal
+        };
+      })
+    );
+
+    return cotizacionesConImpuesto;
   }, db);
 };
 

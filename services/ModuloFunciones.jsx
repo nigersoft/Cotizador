@@ -376,3 +376,64 @@ export const GuardarImpuesto = async (idCotizacion, tipoImpuesto) => {
     throw error;
   }
 };
+
+/**
+ * Obtiene el tipo de impuesto asociado a una cotización
+ * @param {number} idCotizacion - ID de la cotización
+ * @returns {Promise<string|null>} - Tipo de impuesto ('AGREGADO', 'INCLUIDO', 'SIN IMPUESTO') o null si no existe
+ */
+export const ObtenerTipoImpuestoCotizacion = async (idCotizacion) => {
+  try {
+    if (!idCotizacion) {
+      return null;
+    }
+
+    const db = await getDBConnection();
+
+    // Consultar el tipo de impuesto mediante joins
+    const resultado = await db.getFirstAsync(
+      `SELECT ti.Descripcion as TipoImpuesto
+       FROM Impuestos i
+       INNER JOIN TipoImpuestos ti ON i.IdTipoImpuesto = ti.Id
+       WHERE i.IdCotizacion = ?`,
+      [idCotizacion]
+    );
+
+    return resultado?.TipoImpuesto || null;
+  } catch (error) {
+    console.error('Error al obtener tipo de impuesto:', error);
+    return null;
+  }
+};
+
+/**
+ * Calcula el costo final aplicando el impuesto según el tipo
+ * @param {number} costoBase - Costo base sin impuesto
+ * @param {string|null} tipoImpuesto - Tipo de impuesto: 'AGREGADO', 'INCLUIDO', 'SIN IMPUESTO' o null
+ * @returns {number} - Costo final con impuesto aplicado
+ */
+export const CalcularCostoConImpuesto = (costoBase, tipoImpuesto) => {
+  if (!costoBase || isNaN(costoBase)) {
+    return 0;
+  }
+
+  const costo = Number(costoBase);
+
+  // Si no hay tipo de impuesto o es SIN IMPUESTO, retornar el costo base
+  if (!tipoImpuesto || tipoImpuesto === TIPOS_IMPUESTO.SIN_IMPUESTO) {
+    return costo;
+  }
+
+  // Si el impuesto está AGREGADO, multiplicar por 1.13
+  if (tipoImpuesto === TIPOS_IMPUESTO.AGREGADO) {
+    return costo * (1 + PORCENTAJE_IMPUESTO);
+  }
+
+  // Si el impuesto está INCLUIDO, retornar el costo tal cual
+  if (tipoImpuesto === TIPOS_IMPUESTO.INCLUIDO) {
+    return costo;
+  }
+
+  // Default: retornar costo base
+  return costo;
+};

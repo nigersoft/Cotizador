@@ -76,20 +76,39 @@
 
 ## 🐛 ISSUES CONOCIDOS
 
-### 🔴 Crítico
-- **Bugs post-refactorización**: Según último commit "Refactor realizado, pero aún con bugs"
-  - Archivos afectados: `ModuloDb/MDb.js`, `services/ModuloFunciones.jsx`
-  - Refactorización relacionada con el sistema de impuestos
+### ✅ Resueltos
+- ~~**Bug en cálculo de impuestos AGREGADO**~~ (Resuelto: 31/10/2025)
+  - La función `CalcularCostoConImpuesto` retornaba solo el 13% en lugar de costo + 13%
+  - Corregido en `services/ModuloFunciones.jsx:429`
 
 ### 🟡 Pendiente de Revisión
-- Sistema de impuestos recientemente agregado requiere pruebas exhaustivas
-- Verificar integridad de cálculos después de cambios en ModuloFunciones.jsx
+- Sistema de impuestos requiere pruebas exhaustivas en todos los escenarios
+- Verificar integridad de cálculos con diferentes combinaciones de impuestos
 
 ---
 
 ## 📝 REGISTRO DE CAMBIOS
 
-### 2025-10-31
+### 2025-10-31 (tarde)
+**Bug Fix**: Corregido cálculo de impuesto AGREGADO en CotizacionesGeneradas
+- **Problema**: Al agregar impuesto tipo AGREGADO a una cotización, el listado mostraba solo el 13% del impuesto en lugar del costo total + 13%
+- **Causa**: Error en `CalcularCostoConImpuesto()` que multiplicaba por `PORCENTAJE_IMPUESTO` (0.13) en lugar de `(1 + PORCENTAJE_IMPUESTO)` (1.13)
+- **Solución**: Corregido en `services/ModuloFunciones.jsx:429`
+- **Archivos modificados**:
+  - services/ModuloFunciones.jsx
+- **Testing realizado**:
+  - Verificado cálculo para AGREGADO: costo × 1.13 ✅
+  - Verificado cálculo para INCLUIDO: costo sin cambio ✅
+  - Verificado cálculo para SIN IMPUESTO: costo sin cambio ✅
+  - Verificado cambio entre tipos de impuesto ✅
+
+### 2025-10-31 (mañana)
+**Commit**: `1d36514` - "docs: Agregar VITACORA.md y actualizar CLAUDE.md"
+- Creado sistema de vitácora para mantener contexto del proyecto
+- Actualizado CLAUDE.md para referenciar la vitácora
+- Documentado estado completo del proyecto y funcionalidades implementadas
+
+### 2025-10-31 (anterior)
 **Commit**: `e239544` - "Refactor realizado, pero aún con bugs"
 - Se realizó refactorización mayor en módulos de base de datos y funciones
 - Sistema de impuestos modificado/mejorado

@@ -37,18 +37,23 @@ const NuevoClienteScreen = ({ navigation }) => {
   );
 
   const handleSave = async () => {
-    // Validación simple
-    if (!nombre.trim() || !apellidos.trim() || !telefono.trim() || !email.trim()) {
-      Alert.alert("Error", "Todos los campos son obligatorios");
+    // Validación: solo Nombre y Teléfono son obligatorios
+    if (!nombre.trim()) {
+      Alert.alert("Error", "El nombre es obligatorio");
+      return;
+    }
+
+    if (!telefono.trim()) {
+      Alert.alert("Error", "El teléfono es obligatorio");
       return;
     }
 
     try {
       const newCliente = {
         Nombre: nombre,
-        Apellido: apellidos,
+        Apellido: apellidos.trim() || null,
         Telefono: telefono,
-        Email: email,
+        Email: email.trim() || null,
       };
 
       await insertCliente(db, newCliente);
