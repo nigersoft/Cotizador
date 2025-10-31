@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 📖 Context and History
+
+**IMPORTANT**: Before making any significant changes or starting work on this project, you **MUST** consult the [VITACORA.md](./VITACORA.md) file. The vitácora contains:
+- Project development history and timeline
+- Current state and known issues
+- Recent changes and refactorings
+- Important technical notes and decisions
+
+This ensures you have full context about the project's evolution and can avoid repeating mistakes or undoing recent work.
+
+---
+
 ## Project Overview
 
 **Cotizador** is an Expo-based React Native mobile application for creating and managing window/glass installation quotations (cotizaciones). The app uses SQLite for local data storage and React Native Paper for UI components.
