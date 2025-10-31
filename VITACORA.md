@@ -89,6 +89,19 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche - parte 7)
+**Mejora UI/UX**: Agregar cliente con modal en ListaClientes
+- **Cambio**: Botón "Agregar Cliente" ahora abre modal en lugar de navegar a otra pantalla
+- **Mejoras**:
+  - Modal con formulario completo (nombre, apellidos, teléfono, email)
+  - Validación inline (solo nombre y teléfono obligatorios)
+  - Botón naranja (#FF9800) para consistencia visual
+  - Recarga automática de lista después de agregar
+  - Experiencia más fluida sin cambiar de pantalla
+- **Archivos modificados**:
+  - screens/ListaClientes.jsx
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 6)
 **Mejora UI/UX**: Botón "Agregar Nueva Ventana" más accesible y llamativo
 - **Cambios**:

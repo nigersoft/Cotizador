@@ -1,8 +1,7 @@
 // screens/ClientesListScreen.jsx
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, FlatList, ActivityIndicator, Alert } from 'react-native';
-//import { Button } from 'react-native-elements';
-import { Button } from 'react-native-paper';
+import { StyleSheet, View, FlatList, ActivityIndicator, Alert, Modal, TextInput, TouchableOpacity, Text as RNText, KeyboardAvoidingView, Platform } from 'react-native';
+import { Button, Text } from 'react-native-paper';
 
 import ClienteItem from '../components/ClienteItem.jsx';
 import {
@@ -10,13 +9,21 @@ import {
   getAllClientes,
   deleteCliente,
   getCotizacionesCountByCliente,
-  deleteCotizacionesByCliente
+  deleteCotizacionesByCliente,
+  insertCliente
 } from '../ModuloDb/MDb.js';
 
 const ListaClientes = ({ navigation }) => {
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [db, setDb] = useState(null);
+
+  // Estado para modal de agregar cliente
+  const [modalVisible, setModalVisible] = useState(false);
+  const [nombre, setNombre] = useState('');
+  const [apellidos, setApellidos] = useState('');
+  const [telefono, setTelefono] = useState('');
+  const [email, setEmail] = useState('');
 
   useEffect(() => {
     const loadDatabase = async () => {
@@ -31,7 +38,7 @@ const ListaClientes = ({ navigation }) => {
         setLoading(false);
       }
     };
-    
+
     loadDatabase();
   }, []);
 
@@ -58,8 +65,6 @@ const ListaClientes = ({ navigation }) => {
 
   const handleEdit = (cliente) => {
     navigation.navigate('EditarCliente', { cliente });
-    //navigation.push('EditarCliente', { cliente });
-    
   };
 
   const handleDelete = async (id) => {
@@ -132,6 +137,48 @@ const ListaClientes = ({ navigation }) => {
     }
   };
 
+  // Agregar nuevo cliente desde modal
+  const handleAgregarCliente = async () => {
+    // Validación: solo Nombre y Teléfono son obligatorios
+    if (!nombre.trim()) {
+      Alert.alert("Error", "El nombre es obligatorio");
+      return;
+    }
+
+    if (!telefono.trim()) {
+      Alert.alert("Error", "El teléfono es obligatorio");
+      return;
+    }
+
+    try {
+      const newCliente = {
+        Nombre: nombre,
+        Apellido: apellidos.trim() || null,
+        Telefono: telefono,
+        Email: email.trim() || null,
+      };
+
+      await insertCliente(db, newCliente);
+
+      // Recargar lista
+      await loadClientes(db);
+
+      // Limpiar formulario
+      setNombre('');
+      setApellidos('');
+      setTelefono('');
+      setEmail('');
+
+      // Cerrar modal
+      setModalVisible(false);
+
+      Alert.alert("Éxito", "Cliente agregado correctamente");
+    } catch (error) {
+      console.error("Error saving cliente", error);
+      Alert.alert("Error", "No se pudo guardar el cliente");
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -150,19 +197,97 @@ const ListaClientes = ({ navigation }) => {
             cliente={item}
             onEdit={handleEdit}
             onDelete={handleDelete}
-            
-            
           />
         )}
+        ListHeaderComponent={
+          <Button
+            mode="contained"
+            style={styles.addButton}
+            buttonColor="#FF9800"
+            onPress={() => setModalVisible(true)}
+            icon="plus"
+          >
+            Agregar Cliente
+          </Button>
+        }
+        contentContainerStyle={styles.listContent}
       />
-  
-  <Button
-   mode="contained"
-   style={styles.addButton}
-   onPress={() => navigation.navigate('NuevoCliente')}
-  >
-   Agregar Cliente
-  </Button>
+
+      {/* Modal para agregar cliente */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalCard}>
+            <RNText style={styles.modalTitle}>Nuevo Cliente</RNText>
+
+            <RNText style={styles.inputLabel}>Nombre *</RNText>
+            <TextInput
+              value={nombre}
+              onChangeText={setNombre}
+              placeholder="Nombre"
+              style={styles.input}
+              autoCapitalize="words"
+            />
+
+            <RNText style={styles.inputLabel}>Apellidos</RNText>
+            <TextInput
+              value={apellidos}
+              onChangeText={setApellidos}
+              placeholder="Apellidos"
+              style={styles.input}
+              autoCapitalize="words"
+            />
+
+            <RNText style={styles.inputLabel}>Teléfono *</RNText>
+            <TextInput
+              value={telefono}
+              onChangeText={setTelefono}
+              placeholder="Teléfono"
+              keyboardType="phone-pad"
+              style={styles.input}
+            />
+
+            <RNText style={styles.inputLabel}>Email</RNText>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.cancelBtn]}
+                onPress={() => {
+                  setModalVisible(false);
+                  // Limpiar formulario al cancelar
+                  setNombre('');
+                  setApellidos('');
+                  setTelefono('');
+                  setEmail('');
+                }}
+              >
+                <RNText style={styles.actionText}>Cancelar</RNText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.saveBtn]}
+                onPress={handleAgregarCliente}
+              >
+                <RNText style={styles.saveBtnText}>Guardar</RNText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 };
@@ -171,22 +296,100 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  listContent: {
+    padding: 16,
+    paddingBottom: 80,
+  },
   addButton: {
-    position: 'relative',
-    margin: 50,
-    marginBottom:80,
-    borderRadius: 8,
-    paddingBottom: 10,
+    marginBottom: 16,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 500,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 20,
+    color: '#1A1C1E',
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#666',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 24,
+  },
+  actionBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  cancelBtn: {
+    backgroundColor: '#F5F5F5',
+  },
+  saveBtn: {
+    backgroundColor: '#2196F3',
+  },
+  actionText: {
+    fontWeight: '700',
+    fontSize: 15,
+    color: '#333',
+  },
+  saveBtnText: {
+    fontWeight: '700',
+    fontSize: 15,
+    color: '#FFFFFF',
   },
 });
 
 export default ListaClientes;
-
-
