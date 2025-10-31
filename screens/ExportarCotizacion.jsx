@@ -89,9 +89,18 @@ const ExportarCotizacion = ({ route, navigation }) => {
   };
 
   const resetearImpuesto = () => {
-    // Si había impuestos aplicados, usar el costoSinImpuesto guardado
-    // Si no había impuestos, usar el costo total actual
-    const costoBase = costoSinImpuesto > 0 ? costoSinImpuesto : costoTotal;
+    let costoBase;
+
+    if (impuestoAplicado === 'agregado') {
+      // Si era AGREGADO, volver al costo sin impuesto
+      costoBase = costoSinImpuesto > 0 ? costoSinImpuesto : costoTotal;
+    } else if (impuestoAplicado === 'incluido') {
+      // Si era INCLUIDO, mantener el costo total actual (que ya incluía el impuesto)
+      costoBase = costoTotal;
+    } else {
+      // Si no había impuesto, usar el costo total actual
+      costoBase = costoTotal;
+    }
 
     setImpuestoAplicado(null);
     setMontoImpuesto(0);

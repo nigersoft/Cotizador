@@ -89,6 +89,17 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche - parte 4)
+**Bug Fix**: Al quitar impuesto INCLUIDO, restaba incorrectamente en ExportarCotizacion
+- **Problema**: Con impuesto INCLUIDO (ej: total ₡11,300 incluye 13%), al quitar el impuesto mostraba ₡10,000 en lugar de ₡11,300
+- **Causa**: `resetearImpuesto()` siempre usaba `costoSinImpuesto` sin distinguir entre AGREGADO e INCLUIDO
+- **Solución**: Modificada lógica en `resetearImpuesto()`:
+  - AGREGADO: vuelve a `costoSinImpuesto` (costo - 13%) ✅
+  - INCLUIDO: mantiene `costoTotal` (ya incluía el 13%) ✅
+- **Archivos modificados**:
+  - screens/ExportarCotizacion.jsx
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 3)
 **Bug Fix**: Impuesto no se elimina al quitar en ExportarCotizacion/EditarCotizacion
 - **Problema**: Al quitar el impuesto y guardar cambios, el cálculo local era correcto pero al regresar a CotizacionesGeneradas el impuesto seguía aplicado
