@@ -89,8 +89,28 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
-### 2025-10-31 (noche)
-**Bug Fix**: Corregido guardado prematuro de ventanas en EditarCotizacion
+### 2025-10-31 (noche - parte 2)
+**Bug Fix**: Corregido eliminación inmediata de ventanas en EditarCotizacion
+- **Problema**: Al eliminar una ventana existente en EditarCotizacion, se eliminaba inmediatamente de BD sin esperar a "Guardar Cambios". Comportamiento inconsistente con agregar ventanas.
+- **Causa**: La función `handleDeleteVentana()` llamaba a `deleteVentanas()` inmediatamente para ventanas existentes
+- **Solución**: Implementado sistema de ventanas pendientes de eliminación
+  - Las ventanas existentes se marcan para eliminación pero no se eliminan de BD
+  - Se eliminan de BD solo al presionar "Guardar Cambios"
+  - Si se cancela o se regresa, las ventanas NO se eliminan
+  - Las ventanas marcadas se ocultan del listado pero permanecen en BD hasta guardar
+- **Archivos modificados**:
+  - screens/EditarCotizacion.jsx
+  - VITACORA.md
+- **Cambios técnicos**:
+  - Agregado estado `ventanasPendientesEliminar` (array de IDs)
+  - Modificado `handleDeleteVentana()` para marcar en lugar de eliminar inmediatamente
+  - Modificado `todasLasVentanas` para filtrar ventanas marcadas
+  - Modificado `calcularCostoVentanas()` para excluir ventanas marcadas
+  - Modificado `guardarCambios()` para ejecutar eliminaciones de BD
+  - Actualizado mensaje de alerta para informar que se elimina al guardar
+
+### 2025-10-31 (noche - parte 1)
+**Commit**: `ebb12ab` - "fix: Corregir guardado prematuro de ventanas en EditarCotizacion"
 - **Problema**: Al agregar una nueva ventana en EditarCotizacion, se guardaba inmediatamente en BD sin esperar a "Guardar Cambios". Si el usuario se devolvía sin guardar, la ventana quedaba guardada de todos modos.
 - **Causa**: La función `agregarNuevaVentana()` llamaba a `insertVentana()` inmediatamente, insertando en BD al momento de agregar
 - **Solución**: Implementado sistema de ventanas pendientes con IDs temporales negativos

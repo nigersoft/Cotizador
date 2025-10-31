@@ -47,6 +47,7 @@ const EditarCotizacion = ({ route, navigation }) => {
   const [Descripcion, setDescripcion] = useState('');
   const [ventanasNuevas, setVentanasNuevas] = useState([]); // Ventanas pendientes de guardar
   const [contadorTemp, setContadorTemp] = useState(-1); // IDs temporales negativos
+  const [ventanasPendientesEliminar, setVentanasPendientesEliminar] = useState([]); // IDs de ventanas a eliminar
 
   // ====== Estado para nueva ventana ======
   const [nuevaDescripcion, setNuevaDescripcion] = useState('');
@@ -82,15 +83,20 @@ const EditarCotizacion = ({ route, navigation }) => {
     return isNaN(numero) ? null : numero;
   };
 
-  // === Calcular costo total de ventanas (existentes + nuevas) ===
+  // === Calcular costo total de ventanas (existentes + nuevas - pendientes eliminar) ===
   const calcularCostoVentanas = () => {
-    const costoExistentes = ventanas.reduce((sum, v) => sum + (v.Costo || 0), 0);
+    const costoExistentes = ventanas
+      .filter(v => !ventanasPendientesEliminar.includes(v.Id))
+      .reduce((sum, v) => sum + (v.Costo || 0), 0);
     const costoNuevas = ventanasNuevas.reduce((sum, v) => sum + (v.Costo || 0), 0);
     return costoExistentes + costoNuevas;
   };
 
-  // === Obtener todas las ventanas (existentes + nuevas) para mostrar ===
-  const todasLasVentanas = [...ventanas, ...ventanasNuevas];
+  // === Obtener todas las ventanas (existentes + nuevas) para mostrar, excluyendo las marcadas para eliminar ===
+  const todasLasVentanas = [
+    ...ventanas.filter(v => !ventanasPendientesEliminar.includes(v.Id)),
+    ...ventanasNuevas
+  ];
 
   // === Funciones de impuestos ===
   const agregarImpuesto = () => {
@@ -122,7 +128,7 @@ const EditarCotizacion = ({ route, navigation }) => {
     setCostoTotal(0);
   };
 
-  // === Recalcular impuesto cuando cambien las ventanas (existentes o nuevas) ===
+  // === Recalcular impuesto cuando cambien las ventanas (existentes, nuevas o pendientes eliminar) ===
   useEffect(() => {
     if (impuestoAplicado && (ventanas.length > 0 || ventanasNuevas.length > 0)) {
       if (impuestoAplicado === 'agregado') {
@@ -141,7 +147,7 @@ const EditarCotizacion = ({ route, navigation }) => {
         setCostoTotal(costoConImpuesto);
       }
     }
-  }, [ventanas, ventanasNuevas, impuestoAplicado]);
+  }, [ventanas, ventanasNuevas, ventanasPendientesEliminar, impuestoAplicado]);
 
   // === Inicialización ===
   useEffect(() => {
@@ -151,6 +157,7 @@ const EditarCotizacion = ({ route, navigation }) => {
         setDb(database);
         setVentanas([]);
         setVentanasNuevas([]); // Limpiar ventanas nuevas al cargar
+        setVentanasPendientesEliminar([]); // Limpiar ventanas pendientes de eliminar
         setContadorTemp(-1); // Resetear contador
         await cargarDatos(database);
         setIdCliente(cotizacion.IdCliente);
@@ -299,25 +306,22 @@ const EditarCotizacion = ({ route, navigation }) => {
 
     Alert.alert(
       '¿Eliminar ventana?',
-      `¿Deseas eliminar la ventana "${ventanaSeleccionada?.Nombre || ventanaSeleccionada?.Descripcion || 'sin nombre'}"?`,
+      `¿Deseas eliminar la ventana "${ventanaSeleccionada?.Nombre || ventanaSeleccionada?.Descripcion || 'sin nombre'}"?\n\nLa ventana se eliminará al presionar "Guardar Cambios".`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
-          onPress: async () => {
+          onPress: () => {
             try {
               // Si es una ventana nueva (ID negativo), solo quitarla del estado
               if (id < 0) {
                 setVentanasNuevas(prev => prev.filter(v => v.Id !== id));
                 Alert.alert('✅ Eliminado', 'La ventana ha sido eliminada.');
               } else {
-                // Si es una ventana existente, eliminar de BD
-                if (!db) throw new Error('BD no inicializada');
-                await deleteVentanas(db, id);
-                // Releer desde SQL
-                await cargarDatos(db);
-                Alert.alert('✅ Eliminado', 'La ventana ha sido eliminada.');
+                // Si es una ventana existente, marcarla para eliminación (NO eliminar de BD todavía)
+                setVentanasPendientesEliminar(prev => [...prev, id]);
+                Alert.alert('✅ Marcado', 'La ventana se eliminará al guardar los cambios.');
               }
             } catch (error) {
               console.error('Error al eliminar la ventana:', error);
@@ -391,6 +395,11 @@ const EditarCotizacion = ({ route, navigation }) => {
       // Actualizar descripción
       await UpdateCotizacion(db, cotizacion.Id, Descripcion);
 
+      // Eliminar ventanas marcadas para eliminación de BD
+      for (const idVentana of ventanasPendientesEliminar) {
+        await deleteVentanas(db, idVentana);
+      }
+
       // Insertar ventanas nuevas en BD
       for (const ventana of ventanasNuevas) {
         const ventanaParaInsertar = {
@@ -413,8 +422,9 @@ const EditarCotizacion = ({ route, navigation }) => {
         await GuardarImpuesto(cotizacion.Id, tipoImpuestoBD);
       }
 
-      // Limpiar ventanas nuevas después de guardar
+      // Limpiar estados después de guardar
       setVentanasNuevas([]);
+      setVentanasPendientesEliminar([]);
 
       Alert.alert('✅ Guardado', 'Cambios de la cotización actualizados');
       navigation.navigate('CotizacionesGen');
