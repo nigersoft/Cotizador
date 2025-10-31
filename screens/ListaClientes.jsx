@@ -201,9 +201,9 @@ const ListaClientes = ({ navigation }) => {
         )}
         ListHeaderComponent={
           <Button
-            mode="contained"
+            mode="outlined"
             style={styles.addButton}
-            buttonColor="#FF9800"
+            textColor="#FF9800"
             onPress={() => setModalVisible(true)}
             icon="plus"
           >
