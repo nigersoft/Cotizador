@@ -164,9 +164,14 @@ const ExportarCotizacion = ({ route, navigation }) => {
             }
             .empresa-info {
               text-align: right;
-              font-size: 14px;
+              font-size: 16px;
               color: #2c3e50;
               font-weight: bold;
+            }
+            .empresa-data {
+              font-size: 16px;
+              font-weight: bold;
+              color: #2c3e50;
             }
             h1, h2 {
               text-align: center;
@@ -238,8 +243,8 @@ const ExportarCotizacion = ({ route, navigation }) => {
               <div class="data"><span class="label">Descripción:</span> ${cotizacion.Descripcion}</div>
             </div>
             <div class="info-empresa">
-              <div class="data">Vidrios y Portones Araya</div>
-              <div class="data">Teléfono: (506) 8490-9790</div>
+              <div class="empresa-data">Vidrios y Portones Araya</div>
+              <div class="empresa-data">Teléfono: (506) 8490-9790</div>
             </div>
           </div>
 
@@ -341,7 +346,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
 
             {/* Costo Total debajo de la tabla */}
             <View style={styles.costoTotalSection}>
-              <Text style={styles.sectionTitle}>Costo Total:</Text>
+              <Text style={styles.sectionTitle}>TOTAL:</Text>
               <Text style={styles.total}>{formatearColones(costoTotal)}</Text>
 
               {/* Botones de impuesto */}
