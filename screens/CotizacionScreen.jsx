@@ -275,6 +275,17 @@ export default function CotizacionesScreen({ navigation }) {
         {/* Título de ventanas */}
         <Text style={styles.sectionTitle}>Ventanas:</Text>
 
+        {/* Botón agregar ventana */}
+        <Button
+          mode="contained"
+          style={styles.addButton}
+          buttonColor="#FF9800"
+          onPress={() => setAgregarVisible(true)}
+          icon="plus"
+        >
+          Agregar Nueva Ventana
+        </Button>
+
         {/* Lista de ventanas */}
         <FlatList
           data={Ventanas}
@@ -293,16 +304,6 @@ export default function CotizacionesScreen({ navigation }) {
             <Text style={styles.emptyText}>No hay ventanas agregadas aún.</Text>
           }
         />
-
-        {/* Botón agregar ventana */}
-        <Button
-          mode="outlined"
-          style={styles.addButton}
-          onPress={() => setAgregarVisible(true)}
-          icon="plus"
-        >
-          Agregar Nueva Ventana
-        </Button>
 
         {/* Total */}
         <View style={styles.totalSection}>
@@ -503,14 +504,17 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   ventanasList: {
-    marginBottom: 16,
+    marginTop: 16,
   },
   addButton: {
     marginTop: 12,
-    marginBottom: 8,
+    marginBottom: 16,
     borderRadius: 12,
-    borderColor: '#2196F3',
-    borderWidth: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   totalSection: {
     backgroundColor: '#FFFFFF',

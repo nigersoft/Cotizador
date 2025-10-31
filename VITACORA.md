@@ -89,6 +89,17 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-10-31 (noche - parte 6)
+**Mejora UI/UX**: Botón "Agregar Nueva Ventana" más accesible y llamativo
+- **Cambios**:
+  - Movido botón arriba de la lista de ventanas (más accesible)
+  - Cambiado color a naranja tenue (#FF9800) para hacerlo más llamativo
+  - Cambiado de outlined a contained para más énfasis
+  - Agregada elevación y sombra para destacar
+- **Archivos modificados**:
+  - screens/CotizacionScreen.jsx
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 5)
 **Mejora UI/UX**: Refactorizado CotizacionScreen similar a EditarCotizacion
 - **Cambio**: Movido formulario de ventanas a modal, solo selector de cliente en pantalla principal
