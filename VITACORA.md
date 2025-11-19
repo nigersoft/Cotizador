@@ -89,6 +89,30 @@
 
 ## 📝 REGISTRO DE CAMBIOS
 
+### 2025-11-19
+**Mejora UI/UX**: Ajuste de posición del botón "Nueva Cotización"
+- **Cambio**: Reducido margen inferior del botón de 24px a 8px en CotizacionesGeneradas
+- **Motivo**: Evitar interferencia con controles de navegación del celular
+- **Mejoras**:
+  - Botón posicionado más arriba sin cambiar márgenes laterales y superior
+  - Mejor accesibilidad en dispositivos móviles
+- **Archivos modificados**:
+  - screens/CotizacionesGeneradas.js
+  - VITACORA.md
+
+### 2025-10-31 (noche - parte 9)
+**Mejora UI/UX**: Agregar vidrio con modal en MaterialesScreen
+- **Cambio**: Botón "Agregar Nuevo Vidrio" ahora abre modal en lugar de navegar a otra pantalla
+- **Mejoras**:
+  - Modal con formulario (descripción, costo)
+  - Botón naranja (#FF9800) para consistencia visual
+  - Recarga automática de lista después de agregar
+  - Experiencia más fluida sin cambiar de pantalla
+  - ScrollView para permitir scroll cuando hay muchos vidrios
+- **Archivos modificados**:
+  - screens/MaterialesScreen.js
+  - VITACORA.md
+
 ### 2025-10-31 (noche - parte 8)
 **Mejora UI/UX**: Botón "Agregar Nueva Ventana" transparente con borde naranja
 - **Cambio**: Cambió de `contained` (relleno sólido) a `outlined` (transparente con borde)
@@ -319,4 +343,4 @@
 
 ---
 
-**Última revisión de esta vitácora**: 31 de octubre de 2025
+**Última revisión de esta vitácora**: 19 de noviembre de 2025
