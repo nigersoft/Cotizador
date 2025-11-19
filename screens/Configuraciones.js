@@ -63,6 +63,38 @@ export default function Configuraciones() {
     }
   };
 
+  const handleImportarDB = async () => {
+    Alert.alert(
+      'Confirmar Importación',
+      '¿Está seguro que desea importar una base de datos? Esto reemplazará todos los datos actuales.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel'
+        },
+        {
+          text: 'Importar',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await ACTUALIZAR_DB();
+              // Recargar la conexión de base de datos
+              const connection = await getDBConnection();
+              setDb(connection);
+              // Recargar el porcentaje de ganancia
+              const porcentaje = await getPorcentajeGanancia(connection);
+              setPorcentajeGanancia(porcentaje.toString());
+            } catch (error) {
+              console.error('Error importando base de datos:', error);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       {!loading && (
@@ -86,7 +118,8 @@ export default function Configuraciones() {
       <Button
         mode="contained"
         style={styles.importButton}
-        onPress={ACTUALIZAR_DB}
+        onPress={handleImportarDB}
+        disabled={loading}
       >
         Importar DB
       </Button>

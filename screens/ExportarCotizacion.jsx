@@ -164,7 +164,7 @@ const ExportarCotizacion = ({ route, navigation }) => {
             }
             .empresa-info {
               text-align: right;
-              font-size: 16px;
+              font-size: 18px;
               color: #2c3e50;
               font-weight: bold;
             }

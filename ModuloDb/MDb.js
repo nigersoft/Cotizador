@@ -2,8 +2,10 @@
 // ✅ Ajustado para Expo SDK 54 usando expo-file-system/legacy
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import * as SQLite from 'expo-sqlite';
 import { Asset } from 'expo-asset';
+import { Alert } from 'react-native';
 import { CalcularCostoConImpuesto, ObtenerTipoImpuestoCotizacion } from '../services/ModuloFunciones.jsx';
 
 // Singleton para manejar la conexión de la base de datos
@@ -542,23 +544,61 @@ export const ACTUALIZAR_DB = async () => {
   const dbPath = `${dbDir}/${dbName}`;
 
   try {
+    // Seleccionar archivo usando document picker
+    const result = await DocumentPicker.getDocumentAsync({
+      type: '*/*',
+      copyToCacheDirectory: true,
+    });
+
+    if (result.canceled) {
+      console.log('📁 Importación cancelada por el usuario');
+      return { success: false, message: 'Importación cancelada' };
+    }
+
+    const selectedFile = result.assets[0];
+
+    // Validar que sea un archivo .db
+    if (!selectedFile.name.endsWith('.db')) {
+      Alert.alert(
+        'Archivo inválido',
+        'Por favor seleccione un archivo con extensión .db'
+      );
+      return { success: false, message: 'Archivo inválido' };
+    }
+
+    // Verificar que el directorio existe
     const dirInfo = await FileSystem.getInfoAsync(dbDir);
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true });
     }
 
-    // Sobrescribe si ya existe (comportamiento original mantenido)
-    const asset = Asset.fromModule(require('../assets/databases/DB_Cotizador.db'));
-    await asset.downloadAsync();
-    if (!asset.localUri) throw new Error('No se pudo obtener la URI local del asset');
+    // Cerrar conexión actual antes de reemplazar el archivo
+    await dbManager.closeConnection();
 
-    await FileSystem.copyAsync({ from: asset.localUri, to: dbPath });
-    console.log('📦 Base de datos copiada a:', dbPath);
+    // Copiar el archivo seleccionado al directorio de SQLite
+    await FileSystem.copyAsync({
+      from: selectedFile.uri,
+      to: dbPath
+    });
 
-    await dbManager.closeConnection(); // forzar reconexión
+    console.log('✅ Base de datos importada desde:', selectedFile.name);
+
+    // Reinicializar la conexión con la nueva base de datos
+    await dbManager.getConnection();
+
+    Alert.alert(
+      'Éxito',
+      `Base de datos "${selectedFile.name}" importada correctamente`
+    );
+
+    return { success: true, message: 'Base de datos importada correctamente' };
   } catch (error) {
-    console.error('Error al configurar la base de datos:', error);
-    throw error;
+    console.error('❌ Error al importar la base de datos:', error);
+    Alert.alert(
+      'Error',
+      'No se pudo importar la base de datos. Verifique que el archivo sea válido.'
+    );
+    return { success: false, message: error.message };
   }
 };
 

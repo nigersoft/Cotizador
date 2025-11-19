@@ -141,9 +141,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   addButton: {
-    marginHorizontal: 24,
-    marginTop: 24,
-    marginBottom: 8,
+    marginHorizontal: 30,
+    marginTop: 30,
+    marginBottom: 45,
     borderRadius: 10,
     backgroundColor: '#2196F3',
   },

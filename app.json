@@ -2,9 +2,9 @@
   "expo": {
     "name": "Cotizador",
     "slug": "Cotizador",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ventana.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -16,8 +16,10 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.cotizador.app",
+      "versionCode": 2,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/ventana.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
@@ -28,6 +30,11 @@
     "plugins": [
       "expo-sqlite",
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8ced0640-b3de-4ba8-af13-20a112b248bc"
+      }
+    }
   }
 }
